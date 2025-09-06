@@ -94,6 +94,39 @@ st.markdown("""
     .stApp > header { visibility: hidden; }
     .stApp > div:first-child { padding-top: 0; }
     
+    /* Force remove all white backgrounds */
+    * {
+        background: transparent !important;
+    }
+    
+    /* Override Streamlit's main container */
+    .stApp > div:first-child > div:first-child > div:first-child {
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    /* Override all block containers */
+    .main .block-container {
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: none !important;
+    }
+    
+    /* Override all divs inside main */
+    .main > div {
+        background: transparent !important;
+    }
+    
+    .main > div > div {
+        background: transparent !important;
+    }
+    
+    .main > div > div > div {
+        background: transparent !important;
+    }
+    
     /* Main background with animation */
     .stApp {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -109,7 +142,7 @@ st.markdown("""
     
     /* Main container with animation */
     .main-container {
-        background: rgba(255, 255, 255, 0.95);
+        background: rgba(255, 255, 255, 0.95) !important;
         border-radius: 20px;
         padding: 2rem;
         margin: 1rem;
@@ -236,7 +269,7 @@ st.markdown("""
     
     /* Login container with animation */
     .login-container {
-        background: rgba(255, 255, 255, 0.95);
+        background: rgba(255, 255, 255, 0.95) !important;
         border-radius: 20px;
         padding: 2rem;
         box-shadow: 0 20px 40px rgba(0,0,0,0.1);
@@ -415,6 +448,29 @@ st.markdown("""
         max-width: none !important;
     }
 </style>
+
+<script>
+// Remove white blocks with JavaScript
+setTimeout(() => {
+    // Remove all white backgrounds
+    const elements = document.querySelectorAll('*');
+    elements.forEach(el => {
+        if (el.style.backgroundColor === 'rgb(255, 255, 255)' || 
+            el.style.backgroundColor === 'white' ||
+            el.classList.contains('block-container') ||
+            el.classList.contains('stApp')) {
+            if (!el.classList.contains('main-container') && 
+                !el.classList.contains('login-container') &&
+                !el.classList.contains('upload-section') &&
+                !el.classList.contains('file-info') &&
+                !el.classList.contains('success-message') &&
+                !el.classList.contains('demo-section')) {
+                el.style.backgroundColor = 'transparent';
+            }
+        }
+    });
+}, 100);
+</script>
 """, unsafe_allow_html=True)
 
 # Authentication check
