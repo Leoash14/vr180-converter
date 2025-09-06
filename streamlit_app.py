@@ -87,69 +87,145 @@ def create_demo_user():
 
 create_demo_user()
 
-# Custom CSS for clean UI
+# Custom CSS for attractive UI
 st.markdown("""
 <style>
+    /* Hide Streamlit default elements */
+    .stApp > header { visibility: hidden; }
+    .stApp > div:first-child { padding-top: 0; }
+    
+    /* Main background */
+    .stApp {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+    
+    /* Main container */
+    .main-container {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 2rem;
+        margin: 1rem;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Header */
     .main-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 3rem 2rem;
+        padding: 2rem;
         border-radius: 15px;
         color: white;
         text-align: center;
         margin-bottom: 2rem;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     }
-    .upload-container {
-        background: white;
+    
+    /* Upload area */
+    .upload-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         border-radius: 15px;
         padding: 2rem;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-        border: 1px solid #e9ecef;
-    }
-    .success-message {
-        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-        border: none;
-        border-radius: 10px;
-        padding: 1.5rem;
-        color: #155724;
-        text-align: center;
         margin: 1rem 0;
+        border: 2px dashed #667eea;
+        transition: all 0.3s ease;
     }
-    .info-card {
-        background: #f8f9fa;
+    
+    .upload-section:hover {
+        border-color: #764ba2;
+        background: linear-gradient(135deg, #f0f2f6 0%, #e3e6ea 100%);
+    }
+    
+    /* File info cards */
+    .file-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
         border-radius: 10px;
         padding: 1rem;
         margin: 0.5rem 0;
-        border-left: 3px solid #667eea;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
-    .login-container {
-        background: white;
+    
+    /* Success message */
+    .success-message {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
         border-radius: 15px;
-        padding: 2rem;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-        border: 1px solid #e9ecef;
+        padding: 1.5rem;
+        text-align: center;
+        margin: 1rem 0;
+        box-shadow: 0 10px 25px rgba(40, 167, 69, 0.3);
     }
+    
+    /* Login container */
+    .login-container {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Buttons */
     .stButton > button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
-        border-radius: 8px;
-        padding: 0.5rem 2rem;
+        border-radius: 12px;
+        padding: 0.75rem 2rem;
         font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* File uploader */
+    .stFileUploader > div {
+        border: 3px dashed #667eea;
+        border-radius: 15px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         transition: all 0.3s ease;
     }
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-    }
-    .stFileUploader > div {
-        border: 2px dashed #667eea;
-        border-radius: 10px;
-        background: #f8f9fa;
-    }
+    
     .stFileUploader > div:hover {
         border-color: #764ba2;
-        background: #f0f2f6;
+        background: linear-gradient(135deg, #f0f2f6 0%, #e3e6ea 100%);
+        transform: scale(1.02);
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 1rem;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    /* Progress bar */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    /* Video player */
+    .stVideo {
+        border-radius: 15px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -229,6 +305,8 @@ if not st.session_state.authenticated:
     st.stop()
 
 # Main app interface (only shown when authenticated)
+st.markdown('<div class="main-container">', unsafe_allow_html=True)
+
 st.markdown("""
 <div class="main-header">
     <h1>🧠 NeRF VR180 Converter</h1>
@@ -236,7 +314,7 @@ st.markdown("""
 </div>
 """.format(st.session_state.user_name), unsafe_allow_html=True)
 
-# Simple header with logout
+# Header with logout
 col1, col2 = st.columns([4, 1])
 with col2:
     if st.button("🚪 Logout", use_container_width=True):
@@ -245,15 +323,15 @@ with col2:
         st.session_state.user_name = None
         st.rerun()
 
-# Main content - Clean and simple
-st.markdown('<div class="upload-container">', unsafe_allow_html=True)
-
+# Upload section
+st.markdown('<div class="upload-section">', unsafe_allow_html=True)
 st.markdown("## 📤 Upload Your Video")
 uploaded_file = st.file_uploader(
     "Choose a video file to convert to VR180",
     type=['mp4', 'avi', 'mov', 'mkv'],
     help="Supported formats: MP4, AVI, MOV, MKV"
 )
+st.markdown('</div>', unsafe_allow_html=True)
 
 if uploaded_file is not None:
     col1, col2 = st.columns([2, 1])
@@ -264,9 +342,9 @@ if uploaded_file is not None:
     
     with col2:
         st.markdown("### 📋 File Details")
-        st.markdown(f'<div class="info-card"><strong>📁 File:</strong><br>{uploaded_file.name}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="info-card"><strong>💾 Size:</strong><br>{uploaded_file.size / (1024*1024):.2f} MB</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="info-card"><strong>🎯 Format:</strong><br>{uploaded_file.name.split(".")[-1].upper()}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="file-info"><strong>📁 File:</strong><br>{uploaded_file.name}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="file-info"><strong>💾 Size:</strong><br>{uploaded_file.size / (1024*1024):.2f} MB</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="file-info"><strong>🎯 Format:</strong><br>{uploaded_file.name.split(".")[-1].upper()}</div>', unsafe_allow_html=True)
 
     # Convert button
     st.markdown("---")
@@ -324,9 +402,9 @@ if uploaded_file is not None:
 else:
     st.markdown("### 👆 Upload a video to get started")
     st.markdown("""
-    <div class="info-card">
+    <div class="file-info">
         <h4>🎯 How it works:</h4>
-        <ol>
+        <ol style="text-align: left; margin: 1rem 0;">
             <li>Upload your video file</li>
             <li>NeRF analyzes and processes it</li>
             <li>Download your VR180 video!</li>
