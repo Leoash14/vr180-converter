@@ -241,25 +241,31 @@ def combine_vr180_video(render_dir, output_video="vr180_output.mp4", fps=30):
     left_video = "temp_left.mp4"
     right_video = "temp_right.mp4"
     
-    # Create left eye video
+    # Create VR-optimized left eye video
     left_cmd = [
         ffmpeg_path, "-y",
         "-r", str(fps),
         "-i", os.path.join(left_dir, "frame_%04d.png"),
         "-c:v", "libx264",
         "-pix_fmt", "yuv420p",
-        "-crf", "23",
+        "-crf", "18",  # Higher quality for VR
+        "-preset", "medium",
+        "-profile:v", "high",
+        "-level", "4.1",
         left_video
     ]
     
-    # Create right eye video
+    # Create VR-optimized right eye video
     right_cmd = [
         ffmpeg_path, "-y",
         "-r", str(fps),
         "-i", os.path.join(right_dir, "frame_%04d.png"),
         "-c:v", "libx264",
         "-pix_fmt", "yuv420p",
-        "-crf", "23",
+        "-crf", "18",  # Higher quality for VR
+        "-preset", "medium",
+        "-profile:v", "high",
+        "-level", "4.1",
         right_video
     ]
     
@@ -268,16 +274,26 @@ def combine_vr180_video(render_dir, output_video="vr180_output.mp4", fps=30):
         subprocess.run(left_cmd, check=True, capture_output=True)
         subprocess.run(right_cmd, check=True, capture_output=True)
         
-        # Combine into side-by-side VR180 video
+        # Combine into VR180-optimized side-by-side video
         combine_cmd = [
             ffmpeg_path, "-y",
             "-i", left_video,
             "-i", right_video,
-        "-filter_complex", "hstack",
+            "-filter_complex", 
+            "[0:v][1:v]hstack=inputs=2[v];"
+            "[v]scale=3840:1920:force_original_aspect_ratio=decrease,"
+            "pad=3840:1920:(ow-iw)/2:(oh-ih)/2:black[vout]",
+            "-map", "[vout]",
             "-c:v", "libx264",
             "-pix_fmt", "yuv420p",
-            "-crf", "23",
-        output_video
+            "-crf", "18",  # Higher quality for VR
+            "-preset", "medium",
+            "-profile:v", "high",
+            "-level", "4.1",
+            "-movflags", "+faststart",  # Better streaming
+            "-metadata", "spherical-video=1",
+            "-metadata", "stereo-mode=left-right",
+            output_video
         ]
         
         subprocess.run(combine_cmd, check=True, capture_output=True)
