@@ -87,313 +87,260 @@ def create_demo_user():
 
 create_demo_user()
 
-# Custom CSS for better UI
+# Custom CSS for clean UI
 st.markdown("""
 <style>
     .main-header {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 3rem 2rem;
+        border-radius: 15px;
         color: white;
         text-align: center;
         margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     }
-    .feature-card {
-        background: #f8f9fa;
-        padding: 1.5rem;
+    .upload-container {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+    }
+    .success-message {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        border: none;
         border-radius: 10px;
-        border-left: 4px solid #667eea;
+        padding: 1.5rem;
+        color: #155724;
+        text-align: center;
         margin: 1rem 0;
     }
-    .upload-area {
+    .info-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+        margin: 0.5rem 0;
+        border-left: 3px solid #667eea;
+    }
+    .login-container {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+    }
+    .stButton > button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    .stFileUploader > div {
         border: 2px dashed #667eea;
         border-radius: 10px;
-        padding: 2rem;
-        text-align: center;
         background: #f8f9fa;
     }
-    .success-box {
-        background: #d4edda;
-        border: 1px solid #c3e6cb;
-        border-radius: 10px;
-        padding: 1rem;
-        color: #155724;
-    }
-    .info-box {
-        background: #d1ecf1;
-        border: 1px solid #bee5eb;
-        border-radius: 10px;
-        padding: 1rem;
-        color: #0c5460;
+    .stFileUploader > div:hover {
+        border-color: #764ba2;
+        background: #f0f2f6;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # Authentication check
 if not st.session_state.authenticated:
-    # Login/Register Interface
+    # Clean Login Interface
     st.markdown("""
     <div class="main-header">
-        <h1>🧠 NeRF-Enhanced VR180 Converter</h1>
-        <p style="font-size: 1.2rem; margin: 0;">Transform your videos into immersive VR180 experiences using Neural Radiance Fields</p>
+        <h1>🧠 NeRF VR180 Converter</h1>
+        <p style="font-size: 1.1rem; margin: 0; opacity: 0.9;">Transform videos into immersive VR180 experiences</p>
     </div>
     """, unsafe_allow_html=True)
     
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown("### 🔐 Login")
-        with st.form("login_form"):
-            login_email = st.text_input("Email", placeholder="your@email.com")
-            login_password = st.text_input("Password", type="password")
-            login_submitted = st.form_submit_button("Login", use_container_width=True)
-            
-            if login_submitted:
-                if login_email and login_password:
-                    user_name = login_user(login_email, login_password)
-                    if user_name:
-                        st.session_state.authenticated = True
-                        st.session_state.user_email = login_email
-                        st.session_state.user_name = user_name
-                        st.success(f"Welcome back, {user_name}!")
-                        st.rerun()
-                    else:
-                        st.error("Invalid email or password")
-                else:
-                    st.error("Please fill in all fields")
+    col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        st.markdown("### 📝 Register")
-        with st.form("register_form"):
-            reg_name = st.text_input("Full Name", placeholder="John Doe")
-            reg_email = st.text_input("Email", placeholder="your@email.com")
-            reg_password = st.text_input("Password", type="password")
-            reg_confirm = st.text_input("Confirm Password", type="password")
-            reg_submitted = st.form_submit_button("Register", use_container_width=True)
-            
-            if reg_submitted:
-                if reg_name and reg_email and reg_password and reg_confirm:
-                    if reg_password == reg_confirm:
-                        if register_user(reg_email, reg_password, reg_name):
-                            st.success("Registration successful! Please login.")
+        st.markdown('<div class="login-container">', unsafe_allow_html=True)
+        
+        tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
+        
+        with tab1:
+            with st.form("login_form"):
+                st.markdown("### Welcome Back")
+                login_email = st.text_input("Email", placeholder="your@email.com", key="login_email")
+                login_password = st.text_input("Password", type="password", key="login_password")
+                login_submitted = st.form_submit_button("Login", use_container_width=True)
+                
+                if login_submitted:
+                    if login_email and login_password:
+                        user_name = login_user(login_email, login_password)
+                        if user_name:
+                            st.session_state.authenticated = True
+                            st.session_state.user_email = login_email
+                            st.session_state.user_name = user_name
+                            st.success(f"Welcome back, {user_name}!")
+                            st.rerun()
                         else:
-                            st.error("Email already exists")
+                            st.error("Invalid email or password")
                     else:
-                        st.error("Passwords don't match")
-                else:
-                    st.error("Please fill in all fields")
-    
-    st.markdown("---")
-    st.markdown("### 🎯 Demo Account")
-    st.markdown("**Email:** demo@nerfvr.com")
-    st.markdown("**Password:** demo123")
-    st.markdown("*Use this account to try the app without registration*")
-    
-    # Demo login button
-    if st.button("🚀 Login as Demo User", use_container_width=True):
-        st.session_state.authenticated = True
-        st.session_state.user_email = "demo@nerfvr.com"
-        st.session_state.user_name = "Demo User"
-        st.rerun()
+                        st.error("Please fill in all fields")
+        
+        with tab2:
+            with st.form("register_form"):
+                st.markdown("### Create Account")
+                reg_name = st.text_input("Full Name", placeholder="John Doe", key="reg_name")
+                reg_email = st.text_input("Email", placeholder="your@email.com", key="reg_email")
+                reg_password = st.text_input("Password", type="password", key="reg_password")
+                reg_confirm = st.text_input("Confirm Password", type="password", key="reg_confirm")
+                reg_submitted = st.form_submit_button("Register", use_container_width=True)
+                
+                if reg_submitted:
+                    if reg_name and reg_email and reg_password and reg_confirm:
+                        if reg_password == reg_confirm:
+                            if register_user(reg_email, reg_password, reg_name):
+                                st.success("Registration successful! Please login.")
+                            else:
+                                st.error("Email already exists")
+                        else:
+                            st.error("Passwords don't match")
+                    else:
+                        st.error("Please fill in all fields")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Demo login
+        st.markdown("---")
+        st.markdown("### 🚀 Quick Demo")
+        st.markdown("Try the app instantly with our demo account")
+        
+        if st.button("Login as Demo User", use_container_width=True):
+            st.session_state.authenticated = True
+            st.session_state.user_email = "demo@nerfvr.com"
+            st.session_state.user_name = "Demo User"
+            st.rerun()
     
     st.stop()
 
 # Main app interface (only shown when authenticated)
 st.markdown("""
 <div class="main-header">
-    <h1>🧠 NeRF-Enhanced VR180 Converter</h1>
-    <p style="font-size: 1.2rem; margin: 0;">Welcome, {}! Transform your videos into immersive VR180 experiences</p>
+    <h1>🧠 NeRF VR180 Converter</h1>
+    <p style="font-size: 1.1rem; margin: 0;">Welcome, {}! Ready to convert your videos</p>
 </div>
 """.format(st.session_state.user_name), unsafe_allow_html=True)
 
-# Logout button
-col1, col2, col3 = st.columns([1, 1, 1])
-with col3:
+# Simple header with logout
+col1, col2 = st.columns([4, 1])
+with col2:
     if st.button("🚪 Logout", use_container_width=True):
         st.session_state.authenticated = False
         st.session_state.user_email = None
         st.session_state.user_name = None
         st.rerun()
 
-# Sidebar
-st.sidebar.markdown("## ⚙️ NeRF Settings")
-st.sidebar.markdown("Configure the Neural Radiance Fields processing:")
+# Main content - Clean and simple
+st.markdown('<div class="upload-container">', unsafe_allow_html=True)
 
-nerf_enabled = st.sidebar.checkbox("🧠 Enable NeRF depth simulation", value=True)
-instant_ngp = st.sidebar.checkbox("⚡ Use Instant-NGP processing", value=True)
-vr_optimization = st.sidebar.checkbox("🎯 Apply VR180 optimization", value=True)
+st.markdown("## 📤 Upload Your Video")
+uploaded_file = st.file_uploader(
+    "Choose a video file to convert to VR180",
+    type=['mp4', 'avi', 'mov', 'mkv'],
+    help="Supported formats: MP4, AVI, MOV, MKV"
+)
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("## 📊 Processing Info")
-st.sidebar.markdown("**Status:** Ready to convert")
-st.sidebar.markdown("**Supported formats:** MP4, AVI, MOV, MKV")
-st.sidebar.markdown("**Max file size:** 100MB")
-
-# Main content
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    st.markdown("## 📤 Upload Your Video")
-    st.markdown('<div class="upload-area">', unsafe_allow_html=True)
+if uploaded_file is not None:
+    col1, col2 = st.columns([2, 1])
     
-    uploaded_file = st.file_uploader(
-        "Drag and drop your video here or click to browse",
-        type=['mp4', 'avi', 'mov', 'mkv'],
-        help="Upload a video to convert to VR180 format",
-        label_visibility="collapsed"
-    )
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    if uploaded_file is not None:
-        st.markdown("### 🎬 Preview")
+    with col1:
+        st.markdown("### 🎬 Video Preview")
         st.video(uploaded_file)
-        
-        # Show file info in styled boxes
-        col_info1, col_info2 = st.columns(2)
-        with col_info1:
-            st.markdown(f'<div class="info-box"><strong>📁 File:</strong> {uploaded_file.name}</div>', unsafe_allow_html=True)
-        with col_info2:
-            st.markdown(f'<div class="info-box"><strong>💾 Size:</strong> {uploaded_file.size / (1024*1024):.2f} MB</div>', unsafe_allow_html=True)
-
-with col2:
-    st.markdown("## ⚙️ Conversion Process")
     
-    if uploaded_file is not None:
-        # Show processing steps
-        st.markdown("### 🔄 Processing Steps")
-        steps = [
-            "📹 Extracting video frames",
-            "🧠 Training NeRF model",
-            "⚡ Instant-NGP processing",
-            "👁️ Generating stereo views",
-            "🎯 Applying VR180 optimization",
-            "💾 Rendering final video"
-        ]
+    with col2:
+        st.markdown("### 📋 File Details")
+        st.markdown(f'<div class="info-card"><strong>📁 File:</strong><br>{uploaded_file.name}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="info-card"><strong>💾 Size:</strong><br>{uploaded_file.size / (1024*1024):.2f} MB</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="info-card"><strong>🎯 Format:</strong><br>{uploaded_file.name.split(".")[-1].upper()}</div>', unsafe_allow_html=True)
+
+    # Convert button
+    st.markdown("---")
+    if st.button("🚀 Convert to VR180", type="primary", use_container_width=True):
+        # Create progress bar
+        progress_bar = st.progress(0)
+        status_text = st.empty()
         
-        for i, step in enumerate(steps):
-            st.markdown(f"**{i+1}.** {step}")
-        
-        st.markdown("---")
-        
-        # Convert button with better styling
-        if st.button("🚀 Start NeRF VR180 Conversion", type="primary", use_container_width=True):
-            # Create progress bar
-            progress_bar = st.progress(0)
-            status_text = st.empty()
+        try:
+            # Save uploaded file temporarily
+            status_text.text("💾 Processing file...")
+            progress_bar.progress(20)
             
-            try:
-                # Save uploaded file temporarily
-                status_text.text("💾 Saving uploaded file...")
-                progress_bar.progress(10)
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
+                tmp_file.write(uploaded_file.getvalue())
+                tmp_path = tmp_file.name
+            
+            # Convert using NeRF VR180 converter
+            status_text.text("🧠 Converting with NeRF...")
+            progress_bar.progress(50)
+            
+            output_path = convert_to_vr180(tmp_path)
+            
+            if os.path.exists(output_path):
+                progress_bar.progress(100)
+                status_text.text("✅ Conversion completed!")
                 
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
-                    tmp_file.write(uploaded_file.getvalue())
-                    tmp_path = tmp_file.name
+                st.markdown('<div class="success-message"><h4>🎉 Success!</h4>Your VR180 video is ready!</div>', unsafe_allow_html=True)
                 
-                # Convert using NeRF VR180 converter
-                status_text.text("🧠 Starting NeRF processing...")
-                progress_bar.progress(20)
+                # Show output video
+                st.markdown("### 🎬 VR180 Output")
+                st.video(output_path)
                 
-                output_path = convert_to_vr180(tmp_path)
+                # Download button
+                st.markdown("### 📥 Download")
+                with open(output_path, "rb") as file:
+                    st.download_button(
+                        label="💾 Download VR180 Video",
+                        data=file.read(),
+                        file_name=f"vr180_{uploaded_file.name}",
+                        mime="video/mp4",
+                        use_container_width=True,
+                        type="primary"
+                    )
                 
-                if os.path.exists(output_path):
-                    progress_bar.progress(100)
-                    status_text.text("✅ Conversion completed!")
-                    
-                    st.markdown('<div class="success-box"><h4>🎉 Success!</h4>Your video has been converted to VR180 format using NeRF technology!</div>', unsafe_allow_html=True)
-                    
-                    # Show output video
-                    st.markdown("### 🎬 VR180 Output Preview")
-                    st.video(output_path)
-                    
-                    # Download button with better styling
-                    st.markdown("### 📥 Download Your VR180 Video")
-                    with open(output_path, "rb") as file:
-                        st.download_button(
-                            label="💾 Download VR180 Video",
-                            data=file.read(),
-                            file_name=f"vr180_nerf_{uploaded_file.name}",
-                            mime="video/mp4",
-                            use_container_width=True,
-                            type="primary"
-                        )
-                    
-                    # Clean up
-                    os.unlink(tmp_path)
-                    os.unlink(output_path)
-                else:
-                    st.error("❌ Conversion failed - no output file created")
-                    
-            except Exception as e:
-                st.error(f"❌ Conversion failed: {str(e)}")
-                st.exception(e)
-    else:
-        st.markdown("### 👆 Upload a video to start")
-        st.markdown("""
-        <div class="info-box">
-            <h4>How it works:</h4>
-            <ol>
-                <li>Upload your video file</li>
-                <li>NeRF analyzes depth and content</li>
-                <li>Instant-NGP processes the data</li>
-                <li>VR180 stereo views are generated</li>
-                <li>Download your immersive VR video!</li>
-            </ol>
-        </div>
-        """, unsafe_allow_html=True)
+                # Clean up
+                os.unlink(tmp_path)
+                os.unlink(output_path)
+            else:
+                st.error("❌ Conversion failed")
+                
+        except Exception as e:
+            st.error(f"❌ Error: {str(e)}")
 
-# Features section
-st.markdown("---")
-st.markdown("## 🧠 NeRF Technology Features")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
+else:
+    st.markdown("### 👆 Upload a video to get started")
     st.markdown("""
-    <div class="feature-card">
-        <h4>🎯 Depth Simulation</h4>
-        <ul>
-            <li>Neural Radiance Fields training</li>
-            <li>Instant-NGP processing</li>
-            <li>Depth-aware stereo offset</li>
-            <li>Perspective correction</li>
-        </ul>
+    <div class="info-card">
+        <h4>🎯 How it works:</h4>
+        <ol>
+            <li>Upload your video file</li>
+            <li>NeRF analyzes and processes it</li>
+            <li>Download your VR180 video!</li>
+        </ol>
     </div>
     """, unsafe_allow_html=True)
 
-with col2:
-    st.markdown("""
-    <div class="feature-card">
-        <h4>👁️ VR180 Enhancement</h4>
-        <ul>
-            <li>Side-by-side stereo rendering</li>
-            <li>Color grading optimization</li>
-            <li>VR metadata embedding</li>
-            <li>High-quality encoding</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
-with col3:
-    st.markdown("""
-    <div class="feature-card">
-        <h4>⚡ Performance</h4>
-        <ul>
-            <li>Real-time processing</li>
-            <li>Frame-by-frame enhancement</li>
-            <li>Adaptive stereo calculation</li>
-            <li>Professional output quality</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Footer
+# Simple footer
 st.markdown("---")
 st.markdown("""
-<div style="text-align: center; padding: 2rem; background: #f8f9fa; border-radius: 10px;">
-    <h4>🚀 Built with Advanced AI Technology</h4>
-    <p><strong>NeRF</strong> • <strong>Instant-NGP</strong> • <strong>OpenCV</strong> • <strong>Streamlit</strong></p>
-    <p>GitHub: <a href="https://github.com/Leoash14/vr180-converter" target="_blank">Leoash14/vr180-converter</a></p>
+<div style="text-align: center; padding: 1rem; color: #666;">
+    <p>Built with <strong>NeRF</strong> • <strong>OpenCV</strong> • <strong>Streamlit</strong></p>
+    <p><a href="https://github.com/Leoash14/vr180-converter" target="_blank">GitHub Repository</a></p>
 </div>
 """, unsafe_allow_html=True)
