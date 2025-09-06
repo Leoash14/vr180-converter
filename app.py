@@ -6,6 +6,7 @@ import subprocess
 import cv2
 import numpy as np
 from pathlib import Path
+from vr180_converter import convert_to_vr180
 
 app = Flask(__name__)
 CORS(app)
@@ -148,8 +149,8 @@ def convert_video():
 
         print(f"[INFO] Starting VR180 conversion for: {filename}")
         
-        # Use simplified VR180 conversion
-        output_file = simple_vr180_conversion(input_path)
+        # Use real NeRF-enhanced VR180 conversion
+        output_file = convert_to_vr180(input_path)
         
         # Move the output to the outputs folder with a proper name
         output_name = f"vr180_{filename}"
