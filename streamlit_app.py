@@ -87,20 +87,27 @@ def create_demo_user():
 
 create_demo_user()
 
-# Custom CSS for attractive UI
+# Custom CSS for attractive UI with animations
 st.markdown("""
 <style>
     /* Hide Streamlit default elements */
     .stApp > header { visibility: hidden; }
     .stApp > div:first-child { padding-top: 0; }
     
-    /* Main background */
+    /* Main background with animation */
     .stApp {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         min-height: 100vh;
+        animation: gradientShift 10s ease infinite;
     }
     
-    /* Main container */
+    @keyframes gradientShift {
+        0% { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        50% { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); }
+        100% { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    }
+    
+    /* Main container with animation */
     .main-container {
         background: rgba(255, 255, 255, 0.95);
         border-radius: 20px;
@@ -108,9 +115,21 @@ st.markdown("""
         margin: 1rem;
         box-shadow: 0 20px 40px rgba(0,0,0,0.1);
         backdrop-filter: blur(10px);
+        animation: slideInUp 0.8s ease-out;
     }
     
-    /* Header */
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Header with animation */
     .main-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 2rem;
@@ -119,9 +138,21 @@ st.markdown("""
         text-align: center;
         margin-bottom: 2rem;
         box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        animation: fadeInDown 0.6s ease-out;
     }
     
-    /* Upload area */
+    @keyframes fadeInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Upload area with animation */
     .upload-section {
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         border-radius: 15px;
@@ -129,14 +160,22 @@ st.markdown("""
         margin: 1rem 0;
         border: 2px dashed #667eea;
         transition: all 0.3s ease;
+        animation: fadeIn 0.8s ease-out 0.2s both;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
     }
     
     .upload-section:hover {
         border-color: #764ba2;
         background: linear-gradient(135deg, #f0f2f6 0%, #e3e6ea 100%);
+        transform: scale(1.02);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
     }
     
-    /* File info cards */
+    /* File info cards with animation */
     .file-info {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -145,9 +184,27 @@ st.markdown("""
         margin: 0.5rem 0;
         text-align: center;
         box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        animation: slideInLeft 0.6s ease-out;
+        transition: all 0.3s ease;
     }
     
-    /* Success message */
+    @keyframes slideInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    .file-info:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    
+    /* Success message with animation */
     .success-message {
         background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
         color: white;
@@ -156,18 +213,50 @@ st.markdown("""
         text-align: center;
         margin: 1rem 0;
         box-shadow: 0 10px 25px rgba(40, 167, 69, 0.3);
+        animation: bounceIn 0.8s ease-out;
     }
     
-    /* Login container */
+    @keyframes bounceIn {
+        0% {
+            opacity: 0;
+            transform: scale(0.3);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(1.05);
+        }
+        70% {
+            transform: scale(0.9);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    /* Login container with animation */
     .login-container {
         background: rgba(255, 255, 255, 0.95);
         border-radius: 20px;
         padding: 2rem;
         box-shadow: 0 20px 40px rgba(0,0,0,0.1);
         backdrop-filter: blur(10px);
+        animation: slideInUp 0.8s ease-out;
     }
     
-    /* Buttons */
+    /* Remove white blocks from forms */
+    .stForm {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+    }
+    
+    .stForm > div {
+        background: transparent !important;
+        border: none !important;
+    }
+    
+    /* Buttons with animation */
     .stButton > button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -178,30 +267,41 @@ st.markdown("""
         font-size: 1rem;
         transition: all 0.3s ease;
         box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3); }
+        50% { box-shadow: 0 5px 25px rgba(102, 126, 234, 0.5); }
+        100% { box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3); }
     }
     
     .stButton > button:hover {
         transform: translateY(-3px);
         box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        animation: none;
     }
     
-    /* File uploader */
+    /* File uploader with animation */
     .stFileUploader > div {
         border: 3px dashed #667eea;
         border-radius: 15px;
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         transition: all 0.3s ease;
+        animation: fadeIn 0.8s ease-out 0.4s both;
     }
     
     .stFileUploader > div:hover {
         border-color: #764ba2;
         background: linear-gradient(135deg, #f0f2f6 0%, #e3e6ea 100%);
         transform: scale(1.02);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
     }
     
-    /* Tabs */
+    /* Tabs with animation */
     .stTabs [data-baseweb="tab-list"] {
         gap: 1rem;
+        animation: fadeIn 0.8s ease-out 0.3s both;
     }
     
     .stTabs [data-baseweb="tab"] {
@@ -210,22 +310,57 @@ st.markdown("""
         border-radius: 10px;
         padding: 0.5rem 1rem;
         font-weight: 600;
+        transition: all 0.3s ease;
     }
     
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
         box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        transform: scale(1.05);
     }
     
-    /* Progress bar */
+    /* Progress bar with animation */
     .stProgress > div > div > div > div {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        animation: progressGlow 1.5s ease-in-out infinite;
     }
     
-    /* Video player */
+    @keyframes progressGlow {
+        0%, 100% { box-shadow: 0 0 5px rgba(102, 126, 234, 0.5); }
+        50% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.8); }
+    }
+    
+    /* Video player with animation */
     .stVideo {
         border-radius: 15px;
         box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        animation: fadeIn 0.8s ease-out;
+    }
+    
+    /* Input fields with animation */
+    .stTextInput > div > div > input {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+        animation: fadeIn 0.8s ease-out 0.5s both;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        transform: scale(1.02);
+    }
+    
+    /* Demo section with animation */
+    .demo-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        text-align: center;
+        animation: slideInUp 0.8s ease-out 0.6s both;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -291,8 +426,8 @@ if not st.session_state.authenticated:
         
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # Demo login
-        st.markdown("---")
+        # Demo login with animation
+        st.markdown('<div class="demo-section">', unsafe_allow_html=True)
         st.markdown("### 🚀 Quick Demo")
         st.markdown("Try the app instantly with our demo account")
         
@@ -301,6 +436,7 @@ if not st.session_state.authenticated:
             st.session_state.user_email = "demo@nerfvr.com"
             st.session_state.user_name = "Demo User"
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
     
     st.stop()
 
