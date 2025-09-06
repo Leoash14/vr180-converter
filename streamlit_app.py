@@ -3,6 +3,9 @@ import cv2
 import numpy as np
 import os
 import tempfile
+import hashlib
+import sqlite3
+from datetime import datetime
 from vr180_converter import convert_to_vr180
 
 # Configure page
@@ -12,6 +15,77 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Initialize session state
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+if 'user_email' not in st.session_state:
+    st.session_state.user_email = None
+if 'user_name' not in st.session_state:
+    st.session_state.user_name = None
+
+# Database functions
+def init_db():
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            name TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def register_user(email, password, name):
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            INSERT INTO users (email, password_hash, name)
+            VALUES (?, ?, ?)
+        ''', (email, hash_password(password), name))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+    finally:
+        conn.close()
+
+def login_user(email, password):
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT name FROM users 
+        WHERE email = ? AND password_hash = ?
+    ''', (email, hash_password(password)))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else None
+
+# Initialize database
+init_db()
+
+# Create demo user if it doesn't exist
+def create_demo_user():
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) FROM users WHERE email = ?', ('demo@nerfvr.com',))
+    if cursor.fetchone()[0] == 0:
+        cursor.execute('''
+            INSERT INTO users (email, password_hash, name)
+            VALUES (?, ?, ?)
+        ''', ('demo@nerfvr.com', hash_password('demo123'), 'Demo User'))
+        conn.commit()
+    conn.close()
+
+create_demo_user()
 
 # Custom CSS for better UI
 st.markdown("""
@@ -55,13 +129,91 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Header
+# Authentication check
+if not st.session_state.authenticated:
+    # Login/Register Interface
+    st.markdown("""
+    <div class="main-header">
+        <h1>🧠 NeRF-Enhanced VR180 Converter</h1>
+        <p style="font-size: 1.2rem; margin: 0;">Transform your videos into immersive VR180 experiences using Neural Radiance Fields</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("### 🔐 Login")
+        with st.form("login_form"):
+            login_email = st.text_input("Email", placeholder="your@email.com")
+            login_password = st.text_input("Password", type="password")
+            login_submitted = st.form_submit_button("Login", use_container_width=True)
+            
+            if login_submitted:
+                if login_email and login_password:
+                    user_name = login_user(login_email, login_password)
+                    if user_name:
+                        st.session_state.authenticated = True
+                        st.session_state.user_email = login_email
+                        st.session_state.user_name = user_name
+                        st.success(f"Welcome back, {user_name}!")
+                        st.rerun()
+                    else:
+                        st.error("Invalid email or password")
+                else:
+                    st.error("Please fill in all fields")
+    
+    with col2:
+        st.markdown("### 📝 Register")
+        with st.form("register_form"):
+            reg_name = st.text_input("Full Name", placeholder="John Doe")
+            reg_email = st.text_input("Email", placeholder="your@email.com")
+            reg_password = st.text_input("Password", type="password")
+            reg_confirm = st.text_input("Confirm Password", type="password")
+            reg_submitted = st.form_submit_button("Register", use_container_width=True)
+            
+            if reg_submitted:
+                if reg_name and reg_email and reg_password and reg_confirm:
+                    if reg_password == reg_confirm:
+                        if register_user(reg_email, reg_password, reg_name):
+                            st.success("Registration successful! Please login.")
+                        else:
+                            st.error("Email already exists")
+                    else:
+                        st.error("Passwords don't match")
+                else:
+                    st.error("Please fill in all fields")
+    
+    st.markdown("---")
+    st.markdown("### 🎯 Demo Account")
+    st.markdown("**Email:** demo@nerfvr.com")
+    st.markdown("**Password:** demo123")
+    st.markdown("*Use this account to try the app without registration*")
+    
+    # Demo login button
+    if st.button("🚀 Login as Demo User", use_container_width=True):
+        st.session_state.authenticated = True
+        st.session_state.user_email = "demo@nerfvr.com"
+        st.session_state.user_name = "Demo User"
+        st.rerun()
+    
+    st.stop()
+
+# Main app interface (only shown when authenticated)
 st.markdown("""
 <div class="main-header">
     <h1>🧠 NeRF-Enhanced VR180 Converter</h1>
-    <p style="font-size: 1.2rem; margin: 0;">Transform your videos into immersive VR180 experiences using Neural Radiance Fields</p>
+    <p style="font-size: 1.2rem; margin: 0;">Welcome, {}! Transform your videos into immersive VR180 experiences</p>
 </div>
-""", unsafe_allow_html=True)
+""".format(st.session_state.user_name), unsafe_allow_html=True)
+
+# Logout button
+col1, col2, col3 = st.columns([1, 1, 1])
+with col3:
+    if st.button("🚪 Logout", use_container_width=True):
+        st.session_state.authenticated = False
+        st.session_state.user_email = None
+        st.session_state.user_name = None
+        st.rerun()
 
 # Sidebar
 st.sidebar.markdown("## ⚙️ NeRF Settings")
