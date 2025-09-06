@@ -256,6 +256,31 @@ st.markdown("""
         border: none !important;
     }
     
+    /* Remove white blocks from main content */
+    .main .block-container {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+    
+    .stApp > div:first-child > div:first-child {
+        padding-top: 0 !important;
+    }
+    
+    /* Remove white background from main content area */
+    .main .block-container > div {
+        background: transparent !important;
+    }
+    
+    /* Hide Streamlit's default white containers */
+    .stApp > div:first-child > div:first-child > div:first-child {
+        background: transparent !important;
+    }
+    
+    /* Make everything transparent except our custom containers */
+    .stApp > div:first-child > div:first-child > div:first-child > div {
+        background: transparent !important;
+    }
+    
     /* Buttons with animation */
     .stButton > button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -361,6 +386,33 @@ st.markdown("""
         text-align: center;
         animation: slideInUp 0.8s ease-out 0.6s both;
         box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    
+    /* Remove all white backgrounds */
+    .stApp > div:first-child > div:first-child > div:first-child > div:first-child {
+        background: transparent !important;
+    }
+    
+    /* Remove white blocks from columns */
+    .stColumn > div {
+        background: transparent !important;
+    }
+    
+    /* Remove white blocks from markdown containers */
+    .stMarkdown > div {
+        background: transparent !important;
+    }
+    
+    /* Make sure only our custom containers have backgrounds */
+    .stApp {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    }
+    
+    /* Remove padding that creates white space */
+    .main .block-container {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        max-width: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
