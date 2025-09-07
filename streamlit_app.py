@@ -3,9 +3,8 @@ import sqlite3
 import hashlib
 import datetime
 import time
-from io import BytesIO
-from vr180_converter import convert_to_vr180
-
+import os
+from vr180_converter import convert_to_vr180  # memory-safe conversion writes to disk
 
 # Page config
 st.set_page_config(
@@ -74,13 +73,15 @@ if 'is_converting' not in st.session_state:
     st.session_state.is_converting = False
 if 'error' not in st.session_state:
     st.session_state.error = ""
-if 'video_bytes' not in st.session_state:
-    st.session_state.video_bytes = None
+if 'video_path' not in st.session_state:
+    st.session_state.video_path = ""
+if 'output_path' not in st.session_state:
+    st.session_state.output_path = ""
 
-# --- Your same CSS styling ---
+# --- CSS Styling ---
 st.markdown("""
 <style>
-/* Same CSS from your previous code ... */
+/* Your same CSS from previous code here for clean UI */
 </style>
 """, unsafe_allow_html=True)
 
@@ -133,15 +134,17 @@ if not st.session_state.authenticated:
 # Main App
 else:
     if st.session_state.current_state == "upload":
-        st.markdown("""
-        <div class="main-container">
-            <h1 style="text-align:center; font-size:2rem;">Upload your 2D Clip</h1>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align:center;'>Upload your 2D Clip</h1>", unsafe_allow_html=True)
         uploaded_file = st.file_uploader("Choose a video file", type=['mp4','mov','avi'])
         if uploaded_file:
+            upload_dir = "uploads"
+            os.makedirs(upload_dir, exist_ok=True)
+            file_path = os.path.join(upload_dir, uploaded_file.name)
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
             st.session_state.uploaded_file = uploaded_file
-            st.success(f"Selected: {uploaded_file.name} ({uploaded_file.size / (1024*1024):.2f} MB)")
+            st.session_state.video_path = file_path
+            st.success(f"Uploaded: {uploaded_file.name}")
         if st.session_state.error:
             st.error(st.session_state.error)
         col1, col2 = st.columns([1,1])
@@ -164,12 +167,9 @@ else:
             progress.progress(i+1)
             time.sleep(0.05)
         try:
-            if st.session_state.uploaded_file:
-                # Read file into memory
-                video_bytes = st.session_state.uploaded_file.read()
-                # Convert to VR180 in memory
-                output_bytes = convert_to_vr180_bytes(video_bytes)
-                st.session_state.video_bytes = output_bytes
+            if st.session_state.video_path:
+                output_path = convert_to_vr180(st.session_state.video_path)
+                st.session_state.output_path = output_path
                 st.session_state.current_state = "result"
                 st.session_state.is_converting = False
                 st.rerun()
@@ -181,18 +181,19 @@ else:
 
     elif st.session_state.current_state == "result":
         st.markdown("<h2 style='text-align:center;'>VR180 Conversion Complete</h2>", unsafe_allow_html=True)
-        if st.session_state.video_bytes:
-            st.video(st.session_state.video_bytes)
+        if st.session_state.output_path and os.path.exists(st.session_state.output_path):
+            st.video(st.session_state.output_path)
             st.download_button(
                 "Download VR180 Video",
-                data=st.session_state.video_bytes,
+                data=open(st.session_state.output_path, "rb").read(),
                 file_name=f"vr180_{st.session_state.uploaded_file.name}",
                 mime="video/mp4",
                 use_container_width=True
             )
         if st.button("Convert Another Video", use_container_width=True):
             st.session_state.uploaded_file = None
-            st.session_state.video_bytes = None
+            st.session_state.video_path = ""
+            st.session_state.output_path = ""
             st.session_state.progress = 0
             st.session_state.error = ""
             st.session_state.current_state = "upload"
