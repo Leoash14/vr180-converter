@@ -211,6 +211,35 @@ st.markdown("""
     .stApp > div:first-child > div:first-child > div:first-child > div:first-child {
         display: none !important;
     }
+    
+    /* Fix text labels - make them visible */
+    .stMarkdown {
+        color: #1f2937 !important;
+    }
+    
+    .stMarkdown p {
+        color: #1f2937 !important;
+    }
+    
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {
+        color: #1f2937 !important;
+    }
+    
+    /* Fix form labels */
+    .stForm label {
+        color: #1f2937 !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Fix tab labels */
+    .stTabs [data-baseweb="tab"] {
+        color: #1f2937 !important;
+    }
+    
+    /* Fix any other text elements */
+    .stText, .stSelectbox label, .stTextInput label {
+        color: #1f2937 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
