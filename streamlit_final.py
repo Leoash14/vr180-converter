@@ -20,11 +20,11 @@ def init_db():
     c = conn.cursor()
     # Drop table if exists to ensure clean start
     c.execute('DROP TABLE IF EXISTS users')
-    # Create fresh table
+    # Create fresh table with correct schema
     c.execute('''CREATE TABLE users
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   email TEXT UNIQUE,
-                  password TEXT,
+                  password_hash TEXT,
                   created_at TIMESTAMP)''')
     conn.commit()
     conn.close()
@@ -36,7 +36,7 @@ def register_user(email, password):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
     try:
-        c.execute("INSERT INTO users (email, password, created_at) VALUES (?, ?, ?)",
+        c.execute("INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
                   (email, hash_password(password), datetime.datetime.now()))
         conn.commit()
         return True
@@ -48,7 +48,7 @@ def register_user(email, password):
 def login_user(email, password):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
-    c.execute("SELECT * FROM users WHERE email = ? AND password = ?",
+    c.execute("SELECT * FROM users WHERE email = ? AND password_hash = ?",
               (email, hash_password(password)))
     user = c.fetchone()
     conn.close()
