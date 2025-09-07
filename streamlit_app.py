@@ -130,28 +130,21 @@ st.markdown("""
         background: transparent !important;
     }
     
-    /* Main background with animation */
+    /* Clean background */
     .stApp {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         min-height: 100vh;
-        animation: gradientShift 10s ease infinite;
     }
     
-    @keyframes gradientShift {
-        0% { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        50% { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); }
-        100% { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    }
-    
-    /* Main container with animation */
+    /* Main container */
     .main-container {
-        background: rgba(255, 255, 255, 0.95) !important;
-        border-radius: 20px;
+        background: white;
+        border-radius: 12px;
         padding: 2rem;
-        margin: 1rem;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        backdrop-filter: blur(10px);
-        animation: slideInUp 0.8s ease-out;
+        margin: 1rem auto;
+        max-width: 500px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        border: 1px solid #e2e8f0;
     }
     
     @keyframes slideInUp {
@@ -319,16 +312,14 @@ st.markdown("""
     
     /* Buttons with animation */
     .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        padding: 0.75rem 2rem;
-        font-weight: 600;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        animation: pulse 2s infinite;
+        background: #059669 !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 0.75rem 1.5rem !important;
+        font-weight: 600 !important;
+        width: 100% !important;
+        transition: all 0.2s !important;
     }
     
     @keyframes pulse {
@@ -338,9 +329,8 @@ st.markdown("""
     }
     
     .stButton > button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
-        animation: none;
+        background: #047857 !important;
+        transform: translateY(-1px) !important;
     }
     
     /* File uploader with animation */
