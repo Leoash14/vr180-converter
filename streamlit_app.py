@@ -125,7 +125,7 @@ if not st.session_state.authenticated:
                     st.error("Please fill in all fields")
     
     st.markdown("""
-    <div style="text-align:center; margin-top:1rem; padding:1rem; background:#f0fdf4; border-radius:8px; border:1px solid #bbf7d0;">
+    <div style="text-align:center; margin-top:1rem; padding:1rem; background:#ffffff; border-radius:8px; border:1px solid #bbf7d0;">
         <p><strong>Demo Account:</strong> demo@vr180.com / demo123</p>
     </div>
     """, unsafe_allow_html=True)
