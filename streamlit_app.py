@@ -15,56 +15,64 @@ st.set_page_config(
 )
 
 # --- Database Functions ---
+DB_FILE = "users.db"
+
 def init_db():
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    # Create table if it doesn't exist
-    c.execute('''CREATE TABLE IF NOT EXISTS users
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  email TEXT UNIQUE,
-                  password_hash TEXT,
-                  created_at TIMESTAMP)''')
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        # Create table if it doesn't exist
+        c.execute('''CREATE TABLE IF NOT EXISTS users
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      email TEXT UNIQUE,
+                      password_hash TEXT,
+                      created_at TIMESTAMP)''')
+        conn.commit()
+        conn.close()
+    except sqlite3.OperationalError as e:
+        st.error(f"Database initialization error: {str(e)}")
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def register_user(email, password):
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
     try:
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
         c.execute("INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
                   (email, hash_password(password), datetime.datetime.now()))
         conn.commit()
+        conn.close()
         return True
     except sqlite3.IntegrityError:
         return False
-    finally:
-        conn.close()
+    except sqlite3.OperationalError as e:
+        st.error(f"Database error: {str(e)}")
+        return False
 
 def login_user(email, password):
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
     try:
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
         c.execute("SELECT * FROM users WHERE email = ? AND password_hash = ?",
                   (email, hash_password(password)))
         user = c.fetchone()
-        return user is not None
-    finally:
         conn.close()
+        return user is not None
+    except sqlite3.OperationalError as e:
+        st.error(f"Database error: {str(e)}")
+        return False
 
 def create_demo_user():
-    # Only create demo account if it doesn't exist
-    if not login_user("demo@vr180.com", "demo123"):
-        register_user("demo@vr180.com", "demo123")
+    try:
+        if not login_user("demo@vr180.com", "demo123"):
+            register_user("demo@vr180.com", "demo123")
+    except sqlite3.OperationalError:
+        st.warning("Demo user could not be created: database issue.")
 
-# --- Initialize DB and demo user safely ---
+# --- Initialize DB ---
 init_db()
-try:
-    create_demo_user()
-except sqlite3.OperationalError as e:
-    st.error(f"Database initialization error: {str(e)}")
+create_demo_user()
 
 # --- Session State ---
 if 'authenticated' not in st.session_state:
@@ -87,7 +95,7 @@ if 'output_path' not in st.session_state:
 # --- CSS Styling ---
 st.markdown("""
 <style>
-/* Add your full CSS styling here for UI */
+/* Your full CSS here (dark backgrounds, etc.) */
 </style>
 """, unsafe_allow_html=True)
 
@@ -101,8 +109,7 @@ if not st.session_state.authenticated:
     """, unsafe_allow_html=True)
 
     tab1, tab2 = st.tabs(["Login", "Register"])
-    
-    # --- Login ---
+
     with tab1:
         with st.form("login_form"):
             email = st.text_input("Email", placeholder="Enter your email", type="default")
@@ -117,8 +124,7 @@ if not st.session_state.authenticated:
                         st.error("Invalid email or password")
                 else:
                     st.error("Please fill in all fields")
-    
-    # --- Register ---
+
     with tab2:
         with st.form("register_form"):
             new_email = st.text_input("Email", placeholder="Enter your email", type="default", key="reg_email")
@@ -128,14 +134,13 @@ if not st.session_state.authenticated:
                     if register_user(new_email, new_password):
                         st.success("Registration successful! Please login.")
                     else:
-                        st.error("Email already exists")
+                        st.error("Email already exists or database error.")
                 else:
                     st.error("Please fill in all fields")
-    
-    # --- Demo Account Info ---
+
     st.markdown("""
     <div style="text-align:center; margin-top:1rem; padding:1rem; background:#1f2937; border-radius:8px; border:1px solid #bbf7d0;">
-        <p style="color:white;"><strong>Demo Account:</strong> demo@vr180.com / demo123</p>
+        <p><strong>Demo Account:</strong> demo@vr180.com / demo123</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -145,6 +150,7 @@ else:
         st.markdown("<h2 style='text-align:center;'>Upload your 2D Clip</h2>", unsafe_allow_html=True)
         uploaded_file = st.file_uploader("Choose a video file", type=['mp4','mov','avi'])
         if uploaded_file:
+            # Save uploaded file temporarily
             os.makedirs("uploads", exist_ok=True)
             temp_path = os.path.join("uploads", uploaded_file.name)
             with open(temp_path, "wb") as f:
