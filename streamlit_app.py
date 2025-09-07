@@ -18,14 +18,15 @@ st.set_page_config(
 def init_db():
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
-    c.execute('DROP TABLE IF EXISTS users')
-    c.execute('''CREATE TABLE users
+    # Only create table if it doesn't exist
+    c.execute('''CREATE TABLE IF NOT EXISTS users
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   email TEXT UNIQUE,
                   password_hash TEXT,
                   created_at TIMESTAMP)''')
     conn.commit()
     conn.close()
+
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
