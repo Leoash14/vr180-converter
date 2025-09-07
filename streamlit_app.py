@@ -18,7 +18,7 @@ st.set_page_config(
 def init_db():
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
-    # Only create table if it doesn't exist
+    # Create table if it doesn't exist
     c.execute('''CREATE TABLE IF NOT EXISTS users
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   email TEXT UNIQUE,
@@ -26,7 +26,6 @@ def init_db():
                   created_at TIMESTAMP)''')
     conn.commit()
     conn.close()
-
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -54,9 +53,9 @@ def login_user(email, password):
     return user is not None
 
 def create_demo_user():
+    # Only create demo account if it doesn't exist
     if not login_user("demo@vr180.com", "demo123"):
         register_user("demo@vr180.com", "demo123")
-
 # --- Initialize DB ---
 init_db()
 create_demo_user()
