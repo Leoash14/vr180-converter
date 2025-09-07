@@ -4,9 +4,9 @@ import hashlib
 import datetime
 import time
 import os
-from vr180_converter import convert_to_vr180  # memory-safe conversion writes to disk
+from vr180_converter import convert_to_vr180
 
-# Page config
+# --- Page Config ---
 st.set_page_config(
     page_title="VR180 Converter",
     page_icon="🎥",
@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Database functions
+# --- Database Functions ---
 def init_db():
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
@@ -56,11 +56,11 @@ def create_demo_user():
     if not login_user("demo@vr180.com", "demo123"):
         register_user("demo@vr180.com", "demo123")
 
-# Initialize database
+# --- Initialize DB ---
 init_db()
 create_demo_user()
 
-# Session state
+# --- Session State ---
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
 if 'current_state' not in st.session_state:
@@ -81,22 +81,21 @@ if 'output_path' not in st.session_state:
 # --- CSS Styling ---
 st.markdown("""
 <style>
-/* Your same CSS from previous code here for clean UI */
+/* Your full CSS here (same as your previous big UI) */
 </style>
 """, unsafe_allow_html=True)
 
-# Authentication
+# --- Authentication UI ---
 if not st.session_state.authenticated:
     st.markdown("""
     <div class="main-container">
-        <div style="text-align: center; margin-bottom: 2rem;">
-            <h1 style="font-size: 2rem; font-weight: bold; color: #1f2937; margin-bottom: 0.5rem;">VR180 Converter</h1>
-            <p style="color: #6b7280; margin: 0;">Login to Continue</p>
-        </div>
+        <h1 style="text-align:center;">VR180 Converter</h1>
+        <p style="text-align:center;">Login to continue</p>
     </div>
     """, unsafe_allow_html=True)
-    
+
     tab1, tab2 = st.tabs(["Login", "Register"])
+    
     with tab1:
         with st.form("login_form"):
             email = st.text_input("Email", placeholder="Enter your email", type="default")
@@ -111,6 +110,7 @@ if not st.session_state.authenticated:
                         st.error("Invalid email or password")
                 else:
                     st.error("Please fill in all fields")
+                    
     with tab2:
         with st.form("register_form"):
             new_email = st.text_input("Email", placeholder="Enter your email", type="default", key="reg_email")
@@ -123,33 +123,33 @@ if not st.session_state.authenticated:
                         st.error("Email already exists")
                 else:
                     st.error("Please fill in all fields")
+    
     st.markdown("""
-    <div style="text-align: center; margin-top: 1rem; padding: 1rem; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
-        <p style="margin: 0; color: #166534; font-size: 0.9rem;">
-            <strong>Demo Account:</strong> demo@vr180.com / demo123
-        </p>
+    <div style="text-align:center; margin-top:1rem; padding:1rem; background:#f0fdf4; border-radius:8px; border:1px solid #bbf7d0;">
+        <p><strong>Demo Account:</strong> demo@vr180.com / demo123</p>
     </div>
     """, unsafe_allow_html=True)
 
-# Main App
+# --- Main App UI ---
 else:
     if st.session_state.current_state == "upload":
-        st.markdown("<h1 style='text-align:center;'>Upload your 2D Clip</h1>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align:center;'>Upload your 2D Clip</h2>", unsafe_allow_html=True)
         uploaded_file = st.file_uploader("Choose a video file", type=['mp4','mov','avi'])
         if uploaded_file:
-            upload_dir = "uploads"
-            os.makedirs(upload_dir, exist_ok=True)
-            file_path = os.path.join(upload_dir, uploaded_file.name)
-            with open(file_path, "wb") as f:
+            # Save uploaded file temporarily
+            os.makedirs("uploads", exist_ok=True)
+            temp_path = os.path.join("uploads", uploaded_file.name)
+            with open(temp_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
-            st.session_state.uploaded_file = uploaded_file
-            st.session_state.video_path = file_path
-            st.success(f"Uploaded: {uploaded_file.name}")
+            st.session_state.video_path = temp_path
+            st.success(f"Selected: {uploaded_file.name} ({uploaded_file.size/(1024*1024):.2f} MB)")
+
         if st.session_state.error:
             st.error(st.session_state.error)
+
         col1, col2 = st.columns([1,1])
         with col1:
-            if st.button("Convert with NeRF", disabled=not st.session_state.uploaded_file or st.session_state.is_converting, use_container_width=True):
+            if st.button("Convert with NeRF", disabled=not st.session_state.video_path or st.session_state.is_converting, use_container_width=True):
                 st.session_state.current_state = "processing"
                 st.session_state.is_converting = True
                 st.session_state.error = ""
@@ -186,7 +186,7 @@ else:
             st.download_button(
                 "Download VR180 Video",
                 data=open(st.session_state.output_path, "rb").read(),
-                file_name=f"vr180_{st.session_state.uploaded_file.name}",
+                file_name=f"vr180_{os.path.basename(st.session_state.video_path)}",
                 mime="video/mp4",
                 use_container_width=True
             )
