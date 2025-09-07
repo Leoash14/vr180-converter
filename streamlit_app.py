@@ -157,11 +157,17 @@ st.markdown("""
         border-radius: 8px !important;
         padding: 0.75rem !important;
         background: white !important;
+        color: #1f2937 !important;
     }
     
     .stTextInput > div > div > input:focus {
         border-color: #059669 !important;
         box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1) !important;
+        color: #1f2937 !important;
+    }
+    
+    .stTextInput > div > div > input::placeholder {
+        color: #9ca3af !important;
     }
     
     /* Clean progress bar */
@@ -239,6 +245,22 @@ st.markdown("""
     /* Fix any other text elements */
     .stText, .stSelectbox label, .stTextInput label {
         color: #1f2937 !important;
+    }
+    
+    /* Fix all input elements */
+    input[type="text"], input[type="email"], input[type="password"] {
+        color: #1f2937 !important;
+        background: white !important;
+    }
+    
+    /* Fix Streamlit input containers */
+    .stTextInput > div, .stSelectbox > div {
+        background: white !important;
+    }
+    
+    /* Fix form containers */
+    .stForm > div {
+        background: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
