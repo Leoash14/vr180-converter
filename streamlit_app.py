@@ -15,60 +15,67 @@ st.set_page_config(
 )
 
 # --- Database Functions ---
-DB_FILE = "users.db"
+DB_FILE = 'users.db'
 
 def init_db():
-    try:
+    # If DB doesn't exist or has wrong schema, recreate it
+    recreate = False
+    if os.path.exists(DB_FILE):
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            c = conn.cursor()
+            c.execute("SELECT password_hash FROM users LIMIT 1")
+            conn.close()
+        except sqlite3.OperationalError:
+            # Wrong schema, delete DB
+            conn.close()
+            os.remove(DB_FILE)
+            recreate = True
+    else:
+        recreate = True
+
+    if recreate:
         conn = sqlite3.connect(DB_FILE)
         c = conn.cursor()
-        # Create table if it doesn't exist
-        c.execute('''CREATE TABLE IF NOT EXISTS users
-                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                      email TEXT UNIQUE,
-                      password_hash TEXT,
-                      created_at TIMESTAMP)''')
+        c.execute('''CREATE TABLE users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        email TEXT UNIQUE,
+                        password_hash TEXT,
+                        created_at TIMESTAMP
+                    )''')
         conn.commit()
         conn.close()
-    except sqlite3.OperationalError as e:
-        st.error(f"Database initialization error: {str(e)}")
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def register_user(email, password):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
     try:
-        conn = sqlite3.connect(DB_FILE)
-        c = conn.cursor()
         c.execute("INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
                   (email, hash_password(password), datetime.datetime.now()))
         conn.commit()
-        conn.close()
         return True
     except sqlite3.IntegrityError:
         return False
-    except sqlite3.OperationalError as e:
-        st.error(f"Database error: {str(e)}")
-        return False
+    finally:
+        conn.close()
 
 def login_user(email, password):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
     try:
-        conn = sqlite3.connect(DB_FILE)
-        c = conn.cursor()
         c.execute("SELECT * FROM users WHERE email = ? AND password_hash = ?",
                   (email, hash_password(password)))
         user = c.fetchone()
-        conn.close()
         return user is not None
-    except sqlite3.OperationalError as e:
-        st.error(f"Database error: {str(e)}")
-        return False
+    finally:
+        conn.close()
 
 def create_demo_user():
-    try:
-        if not login_user("demo@vr180.com", "demo123"):
-            register_user("demo@vr180.com", "demo123")
-    except sqlite3.OperationalError:
-        st.warning("Demo user could not be created: database issue.")
+    if not login_user("demo@vr180.com", "demo123"):
+        register_user("demo@vr180.com", "demo123")
 
 # --- Initialize DB ---
 init_db()
@@ -95,7 +102,7 @@ if 'output_path' not in st.session_state:
 # --- CSS Styling ---
 st.markdown("""
 <style>
-/* Your full CSS here (dark backgrounds, etc.) */
+/* Your full CSS here */
 </style>
 """, unsafe_allow_html=True)
 
@@ -134,7 +141,7 @@ if not st.session_state.authenticated:
                     if register_user(new_email, new_password):
                         st.success("Registration successful! Please login.")
                     else:
-                        st.error("Email already exists or database error.")
+                        st.error("Email already exists")
                 else:
                     st.error("Please fill in all fields")
 
@@ -150,7 +157,6 @@ else:
         st.markdown("<h2 style='text-align:center;'>Upload your 2D Clip</h2>", unsafe_allow_html=True)
         uploaded_file = st.file_uploader("Choose a video file", type=['mp4','mov','avi'])
         if uploaded_file:
-            # Save uploaded file temporarily
             os.makedirs("uploads", exist_ok=True)
             temp_path = os.path.join("uploads", uploaded_file.name)
             with open(temp_path, "wb") as f:
