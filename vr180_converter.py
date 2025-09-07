@@ -1,24 +1,21 @@
+import os
 import cv2
+import subprocess
 import numpy as np
+import json
 import math
-import io
-import ffmpeg
-from typing import Tuple
+from pathlib import Path
+import shutil
 
-def create_nerf_dataset_from_video_bytes(video_bytes: bytes) -> Tuple[list, int]:
-    """
-    Extract frames from in-memory video bytes and return as list of NumPy arrays.
-    Returns frames and FPS.
-    """
-    # Write video bytes to OpenCV VideoCapture using temporary in-memory buffer
-    temp_file = 'temp_video.mp4'
-    with open(temp_file, 'wb') as f:
-        f.write(video_bytes)
+def create_nerf_dataset_from_video(video_path, output_dir="nerf_dataset"):
+    os.makedirs(output_dir, exist_ok=True)
+    images_dir = os.path.join(output_dir, "images")
+    os.makedirs(images_dir, exist_ok=True)
 
-    cap = cv2.VideoCapture(temp_file)
-    fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
-    frames = []
-    
+    cap = cv2.VideoCapture(video_path)
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30
+    count = 0
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -27,91 +24,115 @@ def create_nerf_dataset_from_video_bytes(video_bytes: bytes) -> Tuple[list, int]
         if width > 1920:
             scale = 1920 / width
             frame = cv2.resize(frame, (1920, int(height * scale)))
-        frames.append(frame)
-    
-    cap.release()
-    return frames, fps
+        cv2.imwrite(os.path.join(images_dir, f"frame_{count:04d}.png"), frame)
+        count += 1
 
-def train_nerf_with_instant_ngp(frames: list):
-    """
-    Dummy NeRF training simulation on in-memory frames.
-    """
-    # Here you can add any in-memory enhancements
-    # Currently just prints info
-    if not frames:
-        return False
-    print(f"[INFO] Training on {len(frames)} frames (in-memory)")
+    cap.release()
+    create_transforms_json(images_dir, os.path.join(output_dir, "transforms.json"), fps)
+    return output_dir, fps
+
+def create_transforms_json(frames_dir, output_path, fps=30):
+    frame_files = sorted([f for f in os.listdir(frames_dir) if f.endswith('.png')])
+    num_frames = len(frame_files)
+    radius = 2.0
+    height = 0.0
+    frames = []
+
+    for i, frame_file in enumerate(frame_files):
+        angle = (i / num_frames) * 2 * math.pi
+        x = radius * math.cos(angle)
+        z = radius * math.sin(angle)
+        y = height
+        target = np.array([0, 0, 0])
+        position = np.array([x, y, z])
+        forward = (target - position) / np.linalg.norm(target - position)
+        up = np.array([0, 1, 0])
+        right = np.cross(forward, up)
+        right /= np.linalg.norm(right)
+        up = np.cross(right, forward)
+        up /= np.linalg.norm(up)
+
+        transform_matrix = np.eye(4)
+        transform_matrix[:3, 0] = right
+        transform_matrix[:3, 1] = up
+        transform_matrix[:3, 2] = -forward
+        transform_matrix[:3, 3] = position
+
+        frames.append({
+            "file_path": f"./images/{frame_file}",
+            "transform_matrix": transform_matrix.tolist()
+        })
+
+    with open(output_path, 'w') as f:
+        json.dump({"camera_angle_x": 0.6911, "frames": frames}, f, indent=2)
+
+def train_nerf_with_instant_ngp(dataset_dir):
+    # Dummy training simulation
+    print("[INFO] Training NeRF (simulated)...")
     return True
 
-def render_vr180_views(frames: list) -> Tuple[list, list]:
-    """
-    Create left and right eye frames in-memory.
-    Returns two lists: left_frames, right_frames
-    """
-    left_frames, right_frames = [], []
-    
-    for frame in frames:
+def render_vr180_views(dataset_dir, output_dir="vr180_renders"):
+    os.makedirs(output_dir, exist_ok=True)
+    left_dir = os.path.join(output_dir, "left")
+    right_dir = os.path.join(output_dir, "right")
+    os.makedirs(left_dir, exist_ok=True)
+    os.makedirs(right_dir, exist_ok=True)
+
+    images_dir = os.path.join(dataset_dir, "images")
+    frame_files = sorted([f for f in os.listdir(images_dir) if f.endswith('.png')])
+
+    for i, frame_file in enumerate(frame_files):
+        frame = cv2.imread(os.path.join(images_dir, frame_file))
+        if frame is None:
+            continue
         height, width = frame.shape[:2]
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        edges = cv2.Canny(gray, 50, 150)
-        edge_density = np.sum(edges) / (height * width)
-        base_offset = 12
-        stereo_offset = int(base_offset + edge_density * 8)
-        stereo_offset = min(max(stereo_offset, 5), 20)
 
-        # Left eye
-        left_crop = frame[:, stereo_offset:]
-        left_padded = np.pad(left_crop, ((0,0),(stereo_offset,0),(0,0)), mode='edge')
-        left_matrix = np.float32([[1,0,-2],[0,1,0]])
-        left_corrected = cv2.warpAffine(left_padded, left_matrix, (width,height))
-        left_frames.append(left_corrected)
+        # Simple stereo shift
+        offset = 10
+        left_frame = frame[:, offset:]
+        left_frame = np.pad(left_frame, ((0,0),(offset,0),(0,0)), mode='edge')
+        right_frame = frame[:, :-offset]
+        right_frame = np.pad(right_frame, ((0,0),(0,offset),(0,0)), mode='edge')
 
-        # Right eye
-        right_crop = frame[:, :-stereo_offset]
-        right_padded = np.pad(right_crop, ((0,0),(0,stereo_offset),(0,0)), mode='edge')
-        right_matrix = np.float32([[1,0,2],[0,1,0]])
-        right_corrected = cv2.warpAffine(right_padded, right_matrix, (width,height))
-        right_frames.append(right_corrected)
-    
-    return left_frames, right_frames
+        cv2.imwrite(os.path.join(left_dir, f"frame_{i:04d}.png"), left_frame)
+        cv2.imwrite(os.path.join(right_dir, f"frame_{i:04d}.png"), right_frame)
 
-def combine_vr180_video(left_frames: list, right_frames: list, fps=30) -> bytes:
-    """
-    Combine left/right frames into a VR180 side-by-side video in-memory.
-    Returns video bytes ready for download.
-    """
-    if not left_frames or not right_frames:
-        raise ValueError("No frames provided for VR180 video")
+    return output_dir
 
-    width, height = left_frames[0].shape[1], left_frames[0].shape[0]
+def combine_vr180_video(render_dir, output_video="vr180_output.mp4", fps=30):
+    left_dir = os.path.join(render_dir, "left")
+    right_dir = os.path.join(render_dir, "right")
+    left_video = "temp_left.mp4"
+    right_video = "temp_right.mp4"
+    ffmpeg_cmd_left = [
+        "ffmpeg","-y","-r", str(fps),
+        "-i", os.path.join(left_dir,"frame_%04d.png"),
+        "-c:v","libx264","-pix_fmt","yuv420p", left_video
+    ]
+    ffmpeg_cmd_right = [
+        "ffmpeg","-y","-r", str(fps),
+        "-i", os.path.join(right_dir,"frame_%04d.png"),
+        "-c:v","libx264","-pix_fmt","yuv420p", right_video
+    ]
+    subprocess.run(ffmpeg_cmd_left, check=True)
+    subprocess.run(ffmpeg_cmd_right, check=True)
 
-    # Create FFmpeg input streams
-    process = (
-        ffmpeg
-        .input('pipe:', format='rawvideo', pix_fmt='bgr24', s='{}x{}'.format(width*2,height), framerate=fps)
-        .output('pipe:', format='mp4', pix_fmt='yuv420p', vcodec='libx264', crf=18)
-        .run_async(pipe_stdin=True, pipe_stdout=True, pipe_stderr=True)
-    )
+    output_cmd = [
+        "ffmpeg","-y","-i", left_video,"-i", right_video,
+        "-filter_complex","[0:v][1:v]hstack=inputs=2[v]","-map","[v]",
+        "-c:v","libx264","-pix_fmt","yuv420p", output_video
+    ]
+    subprocess.run(output_cmd, check=True)
 
-    # Write frames as side-by-side
-    for l_frame, r_frame in zip(left_frames, right_frames):
-        combined = np.concatenate((l_frame, r_frame), axis=1)
-        process.stdin.write(combined.astype(np.uint8).tobytes())
+    os.remove(left_video)
+    os.remove(right_video)
+    return os.path.abspath(output_video)
 
-    process.stdin.close()
-    out, err = process.communicate()
-    
-    return out
-
-def convert_to_vr180(video_file) -> bytes:
-    """
-    Main in-memory VR180 conversion.
-    video_file: file-like object (Streamlit uploaded_file)
-    Returns bytes of final MP4 video.
-    """
-    video_bytes = video_file.read()
-    frames, fps = create_nerf_dataset_from_video_bytes(video_bytes)
-    train_nerf_with_instant_ngp(frames)
-    left_frames, right_frames = render_vr180_views(frames)
-    vr180_bytes = combine_vr180_video(left_frames, right_frames, fps=fps)
-    return vr180_bytes
+def convert_to_vr180(video_path):
+    dataset_dir, fps = create_nerf_dataset_from_video(video_path)
+    train_nerf_with_instant_ngp(dataset_dir)
+    render_dir = render_vr180_views(dataset_dir)
+    output_video = combine_vr180_video(render_dir, fps=fps)
+    shutil.rmtree(dataset_dir)
+    shutil.rmtree(render_dir)
+    return output_video
