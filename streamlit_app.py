@@ -43,7 +43,7 @@ def init_db():
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-def register_user(email, password, name):
+def register_user(email, password, name="User"):
     conn = sqlite3.connect('users.db')
     cursor = conn.cursor()
     try:
@@ -74,16 +74,19 @@ init_db()
 
 # Create demo user if it doesn't exist
 def create_demo_user():
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT COUNT(*) FROM users WHERE email = ?', ('demo@nerfvr.com',))
-    if cursor.fetchone()[0] == 0:
-        cursor.execute('''
-            INSERT INTO users (email, password_hash, name)
-            VALUES (?, ?, ?)
-        ''', ('demo@nerfvr.com', hash_password('demo123'), 'Demo User'))
-        conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM users WHERE email = ?', ('demo@vr180.com',))
+        if cursor.fetchone()[0] == 0:
+            cursor.execute('''
+                INSERT INTO users (email, password_hash, created_at)
+                VALUES (?, ?, ?)
+            ''', ('demo@vr180.com', hash_password('demo123'), datetime.datetime.now()))
+            conn.commit()
+        conn.close()
+    except Exception as e:
+        st.error(f"Demo user creation failed: {str(e)}")
 
 create_demo_user()
 
