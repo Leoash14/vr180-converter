@@ -4,7 +4,8 @@ import hashlib
 import datetime
 import time
 from io import BytesIO
-from vr180_converter import convert_to_vr180_bytes  # updated function to return bytes
+from vr180_converter import convert_to_vr180
+
 
 # Page config
 st.set_page_config(
