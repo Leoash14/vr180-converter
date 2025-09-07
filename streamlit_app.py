@@ -18,7 +18,7 @@ st.set_page_config(
 def init_db():
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
-    # Create table if it doesn't exist
+    # Create table only if it doesn't exist
     c.execute('''CREATE TABLE IF NOT EXISTS users
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   email TEXT UNIQUE,
@@ -34,8 +34,10 @@ def register_user(email, password):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
     try:
-        c.execute("INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
-                  (email, hash_password(password), datetime.datetime.now()))
+        c.execute(
+            "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
+            (email, hash_password(password), datetime.datetime.now())
+        )
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -46,8 +48,10 @@ def register_user(email, password):
 def login_user(email, password):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
-    c.execute("SELECT * FROM users WHERE email = ? AND password_hash = ?",
-              (email, hash_password(password)))
+    c.execute(
+        "SELECT * FROM users WHERE email = ? AND password_hash = ?",
+        (email, hash_password(password))
+    )
     user = c.fetchone()
     conn.close()
     return user is not None
@@ -56,6 +60,7 @@ def create_demo_user():
     # Only create demo account if it doesn't exist
     if not login_user("demo@vr180.com", "demo123"):
         register_user("demo@vr180.com", "demo123")
+
 # --- Initialize DB ---
 init_db()
 create_demo_user()
@@ -81,7 +86,11 @@ if 'output_path' not in st.session_state:
 # --- CSS Styling ---
 st.markdown("""
 <style>
-/* Your full CSS here (same as your previous big UI) */
+/* Example: big UI, dark demo box */
+body { background-color: #f8fafc; }
+.main-container { padding: 2rem; text-align: center; }
+input[type="text"], input[type="password"] { background-color: #1f2937; color: white; border-radius: 6px; padding: 0.5rem; border: none; }
+button.stButton > button { background-color: #3b82f6; color: white; border-radius: 6px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -89,13 +98,14 @@ st.markdown("""
 if not st.session_state.authenticated:
     st.markdown("""
     <div class="main-container">
-        <h1 style="text-align:center;">VR180 Converter</h1>
-        <p style="text-align:center;">Login to continue</p>
+        <h1>VR180 Converter</h1>
+        <p>Login to continue</p>
     </div>
     """, unsafe_allow_html=True)
 
     tab1, tab2 = st.tabs(["Login", "Register"])
-    
+
+    # --- Login Form ---
     with tab1:
         with st.form("login_form"):
             email = st.text_input("Email", placeholder="Enter your email", type="default")
@@ -110,7 +120,8 @@ if not st.session_state.authenticated:
                         st.error("Invalid email or password")
                 else:
                     st.error("Please fill in all fields")
-                    
+
+    # --- Registration Form ---
     with tab2:
         with st.form("register_form"):
             new_email = st.text_input("Email", placeholder="Enter your email", type="default", key="reg_email")
@@ -123,9 +134,9 @@ if not st.session_state.authenticated:
                         st.error("Email already exists")
                 else:
                     st.error("Please fill in all fields")
-    
+
     st.markdown("""
-    <div style="text-align:center; margin-top:1rem; padding:1rem; background:#1f2937; border-radius:8px; border:1px solid #bbf7d0;">
+    <div style="text-align:center; margin-top:1rem; padding:1rem; background:#1f2937; color:white; border-radius:8px; border:1px solid #bbf7d0;">
         <p><strong>Demo Account:</strong> demo@vr180.com / demo123</p>
     </div>
     """, unsafe_allow_html=True)
