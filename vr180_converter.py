@@ -99,11 +99,13 @@ def render_vr180_views(dataset_dir, output_dir="vr180_renders"):
 
     return output_dir
 
-def combine_vr180_video(render_dir, output_video="vr180_output.mp4", fps=30):
+def combine_vr180_video(render_dir, input_video, output_video="vr180_output.mp4", fps=30):
     left_dir = os.path.join(render_dir, "left")
     right_dir = os.path.join(render_dir, "right")
     left_video = "temp_left.mp4"
     right_video = "temp_right.mp4"
+
+    # Create left and right videos
     ffmpeg_cmd_left = [
         "ffmpeg","-y","-r", str(fps),
         "-i", os.path.join(left_dir,"frame_%04d.png"),
@@ -117,10 +119,11 @@ def combine_vr180_video(render_dir, output_video="vr180_output.mp4", fps=30):
     subprocess.run(ffmpeg_cmd_left, check=True)
     subprocess.run(ffmpeg_cmd_right, check=True)
 
+    # Combine left & right + original audio
     output_cmd = [
-        "ffmpeg","-y","-i", left_video,"-i", right_video,
-        "-filter_complex","[0:v][1:v]hstack=inputs=2[v]","-map","[v]",
-        "-c:v","libx264","-pix_fmt","yuv420p", output_video
+        "ffmpeg","-y","-i", left_video,"-i", right_video,"-i", input_video,
+        "-filter_complex","[0:v][1:v]hstack=inputs=2[v]","-map","[v]","-map","2:a?",
+        "-c:v","libx264","-pix_fmt","yuv420p","-c:a","aac","-shortest", output_video
     ]
     subprocess.run(output_cmd, check=True)
 
@@ -132,7 +135,7 @@ def convert_to_vr180(video_path):
     dataset_dir, fps = create_nerf_dataset_from_video(video_path)
     train_nerf_with_instant_ngp(dataset_dir)
     render_dir = render_vr180_views(dataset_dir)
-    output_video = combine_vr180_video(render_dir, fps=fps)
+    output_video = combine_vr180_video(render_dir, video_path, fps=fps)
     shutil.rmtree(dataset_dir)
     shutil.rmtree(render_dir)
     return output_video
