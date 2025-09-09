@@ -7,7 +7,9 @@ import math
 from pathlib import Path
 import shutil
 
+
 def create_nerf_dataset_from_video(video_path, output_dir="nerf_dataset"):
+    """Extract frames from video and prepare NeRF dataset folder."""
     os.makedirs(output_dir, exist_ok=True)
     images_dir = os.path.join(output_dir, "images")
     os.makedirs(images_dir, exist_ok=True)
@@ -31,7 +33,9 @@ def create_nerf_dataset_from_video(video_path, output_dir="nerf_dataset"):
     create_transforms_json(images_dir, os.path.join(output_dir, "transforms.json"), fps)
     return output_dir, fps
 
+
 def create_transforms_json(frames_dir, output_path, fps=30):
+    """Generate dummy transforms.json for NeRF-style datasets."""
     frame_files = sorted([f for f in os.listdir(frames_dir) if f.endswith('.png')])
     num_frames = len(frame_files)
     radius = 2.0
@@ -66,12 +70,19 @@ def create_transforms_json(frames_dir, output_path, fps=30):
     with open(output_path, 'w') as f:
         json.dump({"camera_angle_x": 0.6911, "frames": frames}, f, indent=2)
 
+
 def train_nerf_with_instant_ngp(dataset_dir):
-    # Dummy training simulation
+    """Placeholder for NeRF training step."""
     print("[INFO] Training NeRF (simulated)...")
     return True
 
+
 def render_vr180_views(dataset_dir, output_dir="vr180_renders"):
+    """
+    Generate left/right images from frames.
+    NOTE: Currently uses simple pixel-shift (fake stereo).
+    TODO: Replace with real stereo rendering from two slightly offset cameras.
+    """
     os.makedirs(output_dir, exist_ok=True)
     left_dir = os.path.join(output_dir, "left")
     right_dir = os.path.join(output_dir, "right")
@@ -87,19 +98,21 @@ def render_vr180_views(dataset_dir, output_dir="vr180_renders"):
             continue
         height, width = frame.shape[:2]
 
-        # Simple stereo shift
+        # Simple fake stereo offset
         offset = 10
         left_frame = frame[:, offset:]
-        left_frame = np.pad(left_frame, ((0,0),(offset,0),(0,0)), mode='edge')
+        left_frame = np.pad(left_frame, ((0, 0), (offset, 0), (0, 0)), mode='edge')
         right_frame = frame[:, :-offset]
-        right_frame = np.pad(right_frame, ((0,0),(0,offset),(0,0)), mode='edge')
+        right_frame = np.pad(right_frame, ((0, 0), (0, offset), (0, 0)), mode='edge')
 
         cv2.imwrite(os.path.join(left_dir, f"frame_{i:04d}.png"), left_frame)
         cv2.imwrite(os.path.join(right_dir, f"frame_{i:04d}.png"), right_frame)
 
     return output_dir
 
+
 def combine_vr180_video(render_dir, input_video, output_video="vr180_output.mp4", fps=30):
+    """Combine left/right frames into side-by-side VR180 video."""
     left_dir = os.path.join(render_dir, "left")
     right_dir = os.path.join(render_dir, "right")
     left_video = "temp_left.mp4"
@@ -107,45 +120,57 @@ def combine_vr180_video(render_dir, input_video, output_video="vr180_output.mp4"
 
     # Create left and right videos
     ffmpeg_cmd_left = [
-        "ffmpeg","-y","-r", str(fps),
-        "-i", os.path.join(left_dir,"frame_%04d.png"),
-        "-c:v","libx264","-pix_fmt","yuv420p", left_video
+        "ffmpeg", "-y", "-r", str(fps),
+        "-i", os.path.join(left_dir, "frame_%04d.png"),
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", left_video
     ]
     ffmpeg_cmd_right = [
-        "ffmpeg","-y","-r", str(fps),
-        "-i", os.path.join(right_dir,"frame_%04d.png"),
-        "-c:v","libx264","-pix_fmt","yuv420p", right_video
+        "ffmpeg", "-y", "-r", str(fps),
+        "-i", os.path.join(right_dir, "frame_%04d.png"),
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", right_video
     ]
     subprocess.run(ffmpeg_cmd_left, check=True)
     subprocess.run(ffmpeg_cmd_right, check=True)
 
     # Combine left & right + original audio
     output_cmd = [
-        "ffmpeg","-y","-i", left_video,"-i", right_video,"-i", input_video,
-        "-filter_complex","[0:v][1:v]hstack=inputs=2[v]","-map","[v]","-map","2:a?",
-        "-c:v","libx264","-pix_fmt","yuv420p","-c:a","aac","-shortest", output_video
+        "ffmpeg", "-y", "-i", left_video, "-i", right_video, "-i", input_video,
+        "-filter_complex", "[0:v][1:v]hstack=inputs=2[v]",
+        "-map", "[v]", "-map", "2:a?",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", output_video
     ]
     subprocess.run(output_cmd, check=True)
 
     os.remove(left_video)
     os.remove(right_video)
 
-    # ✅ Add VR180 metadata tagging
-    tagged_output = output_video.replace(".mp4", "_vr180.mp4")
-    tag_cmd = [
-        "ffmpeg","-y","-i", output_video,"-c","copy",
-        "-metadata:s:v:0","stereo=left-right",
-        "-metadata:s:v:0","projection=180", tagged_output
-    ]
-    subprocess.run(tag_cmd, check=True)
+    return os.path.abspath(output_video)
 
+
+def inject_vr180_metadata(input_video):
+    """
+    Inject VR180 metadata using Google's Spatial Media Metadata Injector.
+    Requires 'spatialmedia' script in PATH.
+    """
+    tagged_output = input_video.replace(".mp4", "_vr180.mp4")
+    subprocess.run([
+        "python", "spatialmedia", "-i",
+        "--stereo=left-right", "--projection=180",
+        input_video, tagged_output
+    ], check=True)
     return os.path.abspath(tagged_output)
 
+
 def convert_to_vr180(video_path):
+    """Full VR180 conversion pipeline."""
     dataset_dir, fps = create_nerf_dataset_from_video(video_path)
     train_nerf_with_instant_ngp(dataset_dir)
     render_dir = render_vr180_views(dataset_dir)
     output_video = combine_vr180_video(render_dir, video_path, fps=fps)
+    tagged_output = inject_vr180_metadata(output_video)
+
+    # Cleanup temporary data
     shutil.rmtree(dataset_dir)
     shutil.rmtree(render_dir)
-    return output_video
+
+    return tagged_output
