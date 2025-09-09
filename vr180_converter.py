@@ -129,7 +129,17 @@ def combine_vr180_video(render_dir, input_video, output_video="vr180_output.mp4"
 
     os.remove(left_video)
     os.remove(right_video)
-    return os.path.abspath(output_video)
+
+    # ✅ Add VR180 metadata tagging
+    tagged_output = output_video.replace(".mp4", "_vr180.mp4")
+    tag_cmd = [
+        "ffmpeg","-y","-i", output_video,"-c","copy",
+        "-metadata:s:v:0","stereo=left-right",
+        "-metadata:s:v:0","projection=180", tagged_output
+    ]
+    subprocess.run(tag_cmd, check=True)
+
+    return os.path.abspath(tagged_output)
 
 def convert_to_vr180(video_path):
     dataset_dir, fps = create_nerf_dataset_from_video(video_path)
