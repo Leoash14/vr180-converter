@@ -86,7 +86,7 @@ def train_nerf_with_instant_ngp(dataset_dir):
 # Stereo Generation Helpers
 # -----------------------------
 def create_views(frame, mode="brightness", offset=15):
-    """Generate stereo pair using different fake-3D modes."""
+    """Generate stereo pair using different fake-3D modes (vectorized)."""
     h, w, _ = frame.shape
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -102,19 +102,17 @@ def create_views(frame, mode="brightness", offset=15):
     else:
         disp = np.zeros_like(gray)
 
+    x = np.arange(w)
     left = np.zeros_like(frame)
     right = np.zeros_like(frame)
-
     for y in range(h):
-        for x in range(w):
-            dx = disp[y, x]
-            lx = min(w - 1, x + dx // 2)
-            rx = max(0, x - dx // 2)
-            left[y, x] = frame[y, lx]
-            right[y, x] = frame[y, rx]
+        dx = disp[y]
+        lx = np.clip(x + dx // 2, 0, w - 1)
+        rx = np.clip(x - dx // 2, 0, w - 1)
+        left[y] = frame[y, lx]
+        right[y] = frame[y, rx]
 
     return left, right
-
 
 def render_vr180_views(dataset_dir, output_dir="vr180_renders", mode="brightness"):
     """Generate left/right images with selectable stereo mode."""
