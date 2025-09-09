@@ -4,12 +4,14 @@ import subprocess
 import numpy as np
 import json
 import math
-from pathlib import Path
 import shutil
 
 
+# -----------------------------
+# Frame Extraction & Dataset
+# -----------------------------
 def create_nerf_dataset_from_video(video_path, output_dir="nerf_dataset"):
-    """Extract frames from video and prepare NeRF dataset folder."""
+    """Extract frames from video and prepare dataset folder."""
     os.makedirs(output_dir, exist_ok=True)
     images_dir = os.path.join(output_dir, "images")
     os.makedirs(images_dir, exist_ok=True)
@@ -35,7 +37,7 @@ def create_nerf_dataset_from_video(video_path, output_dir="nerf_dataset"):
 
 
 def create_transforms_json(frames_dir, output_path, fps=30):
-    """Generate dummy transforms.json for NeRF-style datasets."""
+    """Generate dummy transforms.json for compatibility with NeRF pipelines."""
     frame_files = sorted([f for f in os.listdir(frames_dir) if f.endswith('.png')])
     num_frames = len(frame_files)
     radius = 2.0
@@ -71,18 +73,54 @@ def create_transforms_json(frames_dir, output_path, fps=30):
         json.dump({"camera_angle_x": 0.6911, "frames": frames}, f, indent=2)
 
 
+# -----------------------------
+# Fake Training Step
+# -----------------------------
 def train_nerf_with_instant_ngp(dataset_dir):
     """Placeholder for NeRF training step."""
     print("[INFO] Training NeRF (simulated)...")
     return True
 
 
-def render_vr180_views(dataset_dir, output_dir="vr180_renders"):
-    """
-    Generate left/right images from frames.
-    NOTE: Currently uses simple pixel-shift (fake stereo).
-    TODO: Replace with real stereo rendering from two slightly offset cameras.
-    """
+# -----------------------------
+# Stereo Generation Helpers
+# -----------------------------
+def create_views(frame, mode="brightness", offset=15):
+    """Generate stereo pair using different fake-3D modes."""
+    h, w, _ = frame.shape
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    if mode == "shift":
+        # Simple uniform shift
+        disp = np.full_like(gray, offset)
+    elif mode == "brightness":
+        # Brightness-based fake depth
+        depth = cv2.normalize(gray.astype(np.float32), None, 0, 1, cv2.NORM_MINMAX)
+        disp = (depth * offset).astype(np.int32)
+    elif mode == "wave":
+        # Sinusoidal depth pattern
+        y_indices = np.arange(h).reshape(-1, 1)
+        disp = ((np.sin(y_indices / 30.0) + 1) * offset / 2).astype(np.int32)
+        disp = np.repeat(disp, w, axis=1)
+    else:
+        disp = np.zeros_like(gray)
+
+    left = np.zeros_like(frame)
+    right = np.zeros_like(frame)
+
+    for y in range(h):
+        for x in range(w):
+            dx = disp[y, x]
+            lx = min(w - 1, x + dx // 2)
+            rx = max(0, x - dx // 2)
+            left[y, x] = frame[y, lx]
+            right[y, x] = frame[y, rx]
+
+    return left, right
+
+
+def render_vr180_views(dataset_dir, output_dir="vr180_renders", mode="brightness"):
+    """Generate left/right images with selectable stereo mode."""
     os.makedirs(output_dir, exist_ok=True)
     left_dir = os.path.join(output_dir, "left")
     right_dir = os.path.join(output_dir, "right")
@@ -96,14 +134,8 @@ def render_vr180_views(dataset_dir, output_dir="vr180_renders"):
         frame = cv2.imread(os.path.join(images_dir, frame_file))
         if frame is None:
             continue
-        height, width = frame.shape[:2]
 
-        # Simple fake stereo offset
-        offset = 10
-        left_frame = frame[:, offset:]
-        left_frame = np.pad(left_frame, ((0, 0), (offset, 0), (0, 0)), mode='edge')
-        right_frame = frame[:, :-offset]
-        right_frame = np.pad(right_frame, ((0, 0), (0, offset), (0, 0)), mode='edge')
+        left_frame, right_frame = create_views(frame, mode=mode, offset=20)
 
         cv2.imwrite(os.path.join(left_dir, f"frame_{i:04d}.png"), left_frame)
         cv2.imwrite(os.path.join(right_dir, f"frame_{i:04d}.png"), right_frame)
@@ -111,6 +143,9 @@ def render_vr180_views(dataset_dir, output_dir="vr180_renders"):
     return output_dir
 
 
+# -----------------------------
+# Video Combination
+# -----------------------------
 def combine_vr180_video(render_dir, input_video, output_video="vr180_output.mp4", fps=30):
     """Combine left/right frames into side-by-side VR180 video."""
     left_dir = os.path.join(render_dir, "left")
@@ -147,6 +182,9 @@ def combine_vr180_video(render_dir, input_video, output_video="vr180_output.mp4"
     return os.path.abspath(output_video)
 
 
+# -----------------------------
+# VR180 Metadata Injection
+# -----------------------------
 def inject_vr180_metadata(input_video):
     """
     Inject VR180 metadata using Google's Spatial Media Metadata Injector.
@@ -161,11 +199,14 @@ def inject_vr180_metadata(input_video):
     return os.path.abspath(tagged_output)
 
 
-def convert_to_vr180(video_path):
+# -----------------------------
+# Main Conversion Pipeline
+# -----------------------------
+def convert_to_vr180(video_path, mode="brightness"):
     """Full VR180 conversion pipeline."""
     dataset_dir, fps = create_nerf_dataset_from_video(video_path)
     train_nerf_with_instant_ngp(dataset_dir)
-    render_dir = render_vr180_views(dataset_dir)
+    render_dir = render_vr180_views(dataset_dir, mode=mode)
     output_video = combine_vr180_video(render_dir, video_path, fps=fps)
     tagged_output = inject_vr180_metadata(output_video)
 
