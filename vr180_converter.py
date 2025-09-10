@@ -187,7 +187,7 @@ def inject_vr180_metadata(input_video):
 
     cmd = [
         "python", "spatialmedia.py",
-        "-i", "--stereo=left-right", "--projection=180",
+        "-i", "--stereo=left-right", "--projection=equirectangular",
         input_video, tagged_output
     ]
 
