@@ -6,11 +6,6 @@ import json
 import math
 import shutil
 
------------------------------
-
-Frame Extraction & Dataset
-
------------------------------
 
 def create_nerf_dataset_from_video(video_path, output_dir="nerf_dataset"):
 """Extract frames from video and prepare dataset folder."""
@@ -73,22 +68,15 @@ for i, frame_file in enumerate(frame_files):
 with open(output_path, 'w') as f:  
     json.dump({"camera_angle_x": 0.6911, "frames": frames}, f, indent=2)
 
------------------------------
-
 Fake Training Step
-
------------------------------
 
 def train_nerf_with_instant_ngp(dataset_dir):
 """Placeholder for NeRF training step."""
 print("[INFO] Training NeRF (simulated)...")
 return True
 
------------------------------
-
 Stereo Generation Helpers
 
------------------------------
 
 def create_views(frame, mode="brightness", offset=15):
 """Generate stereo pair using different fake-3D modes (vectorized)."""
@@ -142,11 +130,7 @@ for i, frame_file in enumerate(frame_files):
 
 return output_dir
 
------------------------------
-
 Video Combination
-
------------------------------
 
 def combine_vr180_video(render_dir, input_video, output_video="vr180_output.mp4", fps=30):
 """Combine left/right frames into side-by-side VR180 video."""
@@ -181,11 +165,7 @@ os.remove(right_video)
 
 return os.path.abspath(output_video)
 
------------------------------
-
 VR180 Metadata Injection
-
------------------------------
 
 def inject_vr180_metadata(input_video):
 """
@@ -207,11 +187,8 @@ except subprocess.CalledProcessError as e:
 
 return os.path.abspath(tagged_output)
 
------------------------------
 
 Main Conversion Pipeline
-
------------------------------
 
 def convert_to_vr180(video_path, mode="brightness"):
 """Full VR180 conversion pipeline."""
