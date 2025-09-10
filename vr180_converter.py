@@ -114,6 +114,7 @@ def create_views(frame, mode="brightness", offset=15):
 
     return left, right
 
+
 def render_vr180_views(dataset_dir, output_dir="vr180_renders", mode="brightness"):
     """Generate left/right images with selectable stereo mode."""
     os.makedirs(output_dir, exist_ok=True)
@@ -185,8 +186,8 @@ def inject_vr180_metadata(input_video):
     tagged_output = input_video.replace(".mp4", "_vr180.mp4")
 
     cmd = [
-        "python", "-m", "spatialmedia.__main__",
-        "-i", "--stereo=left-right", "--projection=equirectangular",
+        "python", "spatialmedia.py",
+        "-i", "--stereo=left-right", "--projection=180",
         input_video, tagged_output
     ]
 
