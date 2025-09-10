@@ -185,8 +185,9 @@ def inject_vr180_metadata(input_video):
     """
     tagged_output = input_video.replace(".mp4", "_vr180.mp4")
 
+    # IMPORTANT: Call the script file directly, not the package
     cmd = [
-        "python", "spatialmedia.py",
+        "python", "/mount/src/vr180-converter/spatialmedia.py",
         "-i", "--stereo=left-right", "--projection=equirectangular",
         input_video, tagged_output
     ]
