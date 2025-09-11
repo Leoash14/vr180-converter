@@ -9,23 +9,16 @@ import math
 from torchvision import transforms
 
 # -----------------------------
-# Ensure spatialmedia is cloned
-# -----------------------------
-def ensure_spatialmedia():
-    if not os.path.exists("spatial-media"):
-        print("[INFO] Cloning Google Spatial Media repo...")
-        subprocess.run(
-            ["git", "clone", "https://github.com/google/spatial-media.git"],
-            check=True
-        )
-
-# -----------------------------
 # Load MiDaS Depth Model (AI)
 # -----------------------------
-def load_midas_model(model_type="DPT_Large"):
+def load_midas_model(model_type="MiDaS_small"):
+    # Load MiDaS model (small = lightweight & stable)
     model = torch.hub.load("intel-isl/MiDaS", model_type)
     model.eval()
-    transform = torch.hub.load("intel-isl/MiDaS", "transforms").dpt_transform
+
+    # Use correct transform for small model
+    midas_transforms = torch.hub.load("intel-isl/MiDaS", "transforms")
+    transform = midas_transforms.small_transform
     return model, transform
 
 midas_model, midas_transform = load_midas_model()
@@ -109,8 +102,7 @@ def panini_projection(img, d=1.0):
             nx = (x - cx) / w
             ny = (y - cy) / h
             r = math.sqrt(nx * nx + ny * ny)
-            if r == 0:
-                continue
+            if r == 0: continue
             theta = math.atan(r)
             k = (theta / r) * (1 + d * r * r)
             sx = int(cx + nx * k * w)
@@ -125,9 +117,9 @@ def panini_projection(img, d=1.0):
 def foveated_blur(img, strength=25):
     h, w = img.shape[:2]
     mask = np.zeros((h, w), np.float32)
-    cv2.circle(mask, (w//2, h//2), min(h, w)//3, 1, -1)
-    blur = cv2.GaussianBlur(img, (0, 0), strength)
-    out = (mask[..., None] * img + (1 - mask[..., None]) * blur).astype(np.uint8)
+    cv2.circle(mask, (w//2, h//2), min(h,w)//3, 1, -1)
+    blur = cv2.GaussianBlur(img, (0,0), strength)
+    out = (mask[...,None]*img + (1-mask[...,None])*blur).astype(np.uint8)
     return out
 
 # -----------------------------
@@ -144,8 +136,7 @@ def render_vr180(images_dir, output_dir="vr180_renders"):
 
     for i, f in enumerate(frame_files):
         frame = cv2.imread(os.path.join(images_dir, f))
-        if frame is None:
-            continue
+        if frame is None: continue
 
         depth = estimate_depth(frame)
         left, right = generate_stereo(frame, depth)
@@ -180,10 +171,9 @@ def combine_vr180(render_dir, fps=30, output="vr180_output.mp4"):
 # Metadata Injection
 # -----------------------------
 def inject_metadata(video_path):
-    ensure_spatialmedia()
     out = video_path.replace(".mp4", "_vr180.mp4")
     cmd = [
-        "python", "spatial-media/spatialmedia",  # run injector script
+        "python", "-m", "spatialmedia",
         "-i", "--stereo=left-right", "--projection=rectilinear",
         video_path, out
     ]
