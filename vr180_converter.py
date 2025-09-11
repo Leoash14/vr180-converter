@@ -1,67 +1,41 @@
-import os
 import cv2
 import torch
-import shutil
-import subprocess
 import numpy as np
-import json
-import math
+import ffmpeg
+from torchvision.transforms import Compose
+from torchvision.transforms import transforms as T
 
-# -----------------------------
-# Load MiDaS Depth Model (AI)
-# -----------------------------
-def load_midas_model(model_type="MiDaS_small"):  # default small model
-    model = torch.hub.load("intel-isl/MiDaS", model_type)
-    model.eval()
-    midas_transforms = torch.hub.load("intel-isl/MiDaS", "transforms")
+# ✅ Load MiDaS depth model (small for speed)
+def load_midas_model(model_type="MiDaS_small"):
+    midas = torch.hub.load("intel-isl/MiDaS", model_type)
+    midas.eval()
+    transform = torch.hub.load("intel-isl/MiDaS", "transforms")
 
-    if "DPT" in model_type:
-        transform = midas_transforms.dpt_transform
+    if model_type in ["DPT_Large", "DPT_Hybrid"]:
+        midas_transform = transform.dpt_transform
     else:
-        transform = midas_transforms.small_transform
+        midas_transform = transform.small_transform
 
-    return model, transform
+    return midas, midas_transform
+
 
 midas_model, midas_transform = load_midas_model()
 
-# -----------------------------
-# Frame Extraction
-# -----------------------------
-def extract_frames(video_path, output_dir="dataset"):
-    os.makedirs(output_dir, exist_ok=True)
-    images_dir = os.path.join(output_dir, "images")
-    os.makedirs(images_dir, exist_ok=True)
 
-    cap = cv2.VideoCapture(video_path)
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30
-    count = 0
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-        h, w = frame.shape[:2]
-        if w > 3840:  # cap width
-            scale = 3840 / w
-            frame = cv2.resize(frame, (3840, int(h * scale)))
-        cv2.imwrite(os.path.join(images_dir, f"frame_{count:04d}.png"), frame)
-        count += 1
-
-    cap.release()
-    return images_dir, fps
-
-# -----------------------------
-# Depth Estimation (MiDaS)
-# -----------------------------
+# ✅ Depth estimation
 def estimate_depth(frame):
     img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    input_batch = midas_transform(img).unsqueeze(0)
+    input_batch = midas_transform(img).unsqueeze(0)  # [1, 3, H, W]
 
     with torch.no_grad():
         prediction = midas_model(input_batch)
 
+        # Fix: only unsqueeze if 3D
+        if prediction.ndim == 3:  # [1, H, W]
+            prediction = prediction.unsqueeze(1)  # → [1, 1, H, W]
+
         depth = torch.nn.functional.interpolate(
-            prediction.unsqueeze(1),
+            prediction,
             size=img.shape[:2],
             mode="bicubic",
             align_corners=False,
@@ -70,134 +44,107 @@ def estimate_depth(frame):
     depth = cv2.normalize(depth, None, 0, 1, cv2.NORM_MINMAX)
     return depth
 
-# -----------------------------
-# Stereo Generation
-# -----------------------------
-def generate_stereo(frame, depth, offset=40):
-    h, w = frame.shape[:2]
-    x = np.arange(w)
 
-    left = np.zeros_like(frame)
-    right = np.zeros_like(frame)
+# ✅ Create stereo pair using depth-based shift
+def create_stereo_pair(frame, depth, ipd=0.06, max_disp=1.5):
+    h, w, _ = frame.shape
+    disparity = (depth - depth.min()) / (depth.max() - depth.min() + 1e-8)
+    disparity = disparity * (max_disp * w / 100)
 
-    disp = (depth * offset).astype(np.int32)
+    left_img = np.zeros_like(frame)
+    right_img = np.zeros_like(frame)
 
-    for y in range(h):
-        dx = disp[y]
-        lx = np.clip(x + dx // 2, 0, w - 1)
-        rx = np.clip(x - dx // 2, 0, w - 1)
-        left[y] = frame[y, lx]
-        right[y] = frame[y, rx]
-
-    return left, right
-
-# -----------------------------
-# Panini Projection (Fisheye-ish)
-# -----------------------------
-def panini_projection(img, d=0.7, s=0.2):  # mix panini + stereographic
-    h, w = img.shape[:2]
-    out = np.zeros_like(img)
-    cx, cy = w // 2, h // 2
-    fov = math.pi / 2
     for y in range(h):
         for x in range(w):
-            nx = (x - cx) / w
-            ny = (y - cy) / h
-            r = math.sqrt(nx * nx + ny * ny)
-            if r == 0:
-                continue
-            theta = math.atan(r)
-            k = (theta / r) * (1 + d * r * r)
-            k = k * (1 - s) + r * s
-            sx = int(cx + nx * k * w)
-            sy = int(cy + ny * k * h)
-            if 0 <= sx < w and 0 <= sy < h:
-                out[y, x] = img[sy, sx]
-    return out
+            disp = int(disparity[y, x] * ipd * 100)
+            if x - disp >= 0:
+                left_img[y, x - disp] = frame[y, x]
+            if x + disp < w:
+                right_img[y, x + disp] = frame[y, x]
 
-# -----------------------------
-# Foveated Rendering Blur
-# -----------------------------
-def foveated_blur(img, strength=25):
+    return left_img, right_img
+
+
+# ✅ Projection: Panini + stereographic mix → equidistant fisheye
+def panini_stretch(img, d=0.7, s=0.2):
     h, w = img.shape[:2]
-    mask = np.zeros((h, w), np.float32)
-    cv2.circle(mask, (w//2, h//2), min(h,w)//3, 1, -1)
-    blur = cv2.GaussianBlur(img, (0,0), strength)
-    out = (mask[...,None]*img + (1-mask[...,None])*blur).astype(np.uint8)
+    fov = np.pi  # 180°
+    out = np.zeros_like(img)
+    cx, cy = w // 2, h // 2
+
+    for y in range(h):
+        for x in range(w):
+            nx = (x - cx) / cx
+            ny = (y - cy) / cy
+            r = np.sqrt(nx * nx + ny * ny)
+            if r == 0:
+                out[y, x] = img[cy, cx]
+                continue
+
+            theta = np.arctan(r)
+            scale = (np.sin(theta) / r) * (d + (1 - d) * np.cos(theta))
+            src_x = int(cx + nx * scale * cx * (1 - s))
+            src_y = int(cy + ny * scale * cy * (1 - s))
+            if 0 <= src_x < w and 0 <= src_y < h:
+                out[y, x] = img[src_y, src_x]
+
     return out
 
-# -----------------------------
-# Render VR180 Views
-# -----------------------------
-def render_vr180(images_dir, output_dir="vr180_renders"):
-    os.makedirs(output_dir, exist_ok=True)
-    left_dir = os.path.join(output_dir, "left")
-    right_dir = os.path.join(output_dir, "right")
-    os.makedirs(left_dir, exist_ok=True)
-    os.makedirs(right_dir, exist_ok=True)
 
-    frame_files = sorted([f for f in os.listdir(images_dir) if f.endswith(".png")])
+# ✅ Foveated blur for periphery
+def foveated_blur(img, start_deg=70):
+    h, w = img.shape[:2]
+    center_x, center_y = w // 2, h // 2
+    max_radius = np.sqrt(center_x**2 + center_y**2)
+    mask = np.zeros((h, w), np.float32)
 
-    for i, f in enumerate(frame_files):
-        frame = cv2.imread(os.path.join(images_dir, f))
-        if frame is None: 
-            continue
+    for y in range(h):
+        for x in range(w):
+            dist = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
+            mask[y, x] = dist / max_radius
+
+    mask = cv2.GaussianBlur(mask, (0, 0), sigmaX=15)
+    blurred = cv2.GaussianBlur(img, (25, 25), 15)
+
+    out = np.uint8(img * (1 - mask[..., None]) + blurred * mask[..., None])
+    return out
+
+
+# ✅ VR180 Converter
+def convert_to_vr180(input_path, output_path, upscale=True):
+    cap = cv2.VideoCapture(input_path)
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+
+    target_w, target_h = 7680, 3840
+    out = cv2.VideoWriter(output_path, fourcc, 30, (target_w, target_h))
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
 
         depth = estimate_depth(frame)
-        left, right = generate_stereo(frame, depth)
+        left, right = create_stereo_pair(frame, depth)
 
-        # Apply projections + foveated blur
-        left = foveated_blur(panini_projection(left))
-        right = foveated_blur(panini_projection(right))
+        left = panini_stretch(left)
+        right = panini_stretch(right)
 
-        cv2.imwrite(os.path.join(left_dir, f"frame_{i:04d}.png"), left)
-        cv2.imwrite(os.path.join(right_dir, f"frame_{i:04d}.png"), right)
+        left = foveated_blur(left)
+        right = foveated_blur(right)
 
-    return output_dir
+        stereo = np.hstack((left, right))
 
-# -----------------------------
-# Combine into Video
-# -----------------------------
-def combine_vr180(render_dir, fps=30, output="vr180_output.mp4"):
-    left = os.path.join(render_dir, "left", "frame_%04d.png")
-    right = os.path.join(render_dir, "right", "frame_%04d.png")
+        if upscale:
+            stereo = cv2.resize(stereo, (target_w, target_h), interpolation=cv2.INTER_CUBIC)
 
-    cmd = [
-        "ffmpeg", "-y",
-        "-framerate", str(fps), "-i", left,
-        "-framerate", str(fps), "-i", right,
-        "-filter_complex", "[0:v][1:v]hstack=inputs=2[v]",
-        "-map", "[v]", "-c:v", "libx264", "-pix_fmt", "yuv420p", output
-    ]
-    subprocess.run(cmd, check=True)
-    return os.path.abspath(output)
+        out.write(stereo)
 
-# -----------------------------
-# Metadata Injection
-# -----------------------------
-def inject_metadata(video_path):
-    out = video_path.replace(".mp4", "_vr180.mp4")
-    cmd = [
-        "python", "spatialmedia",  # assuming spatialmedia is in PATH
-        "-i", "--stereo=left-right", "--projection=fisheye",
-        video_path, out
-    ]
-    try:
-        subprocess.run(cmd, check=True)
-    except:
-        print("[WARN] Metadata injection failed")
-        return video_path
-    return out
+    cap.release()
+    out.release()
 
-# -----------------------------
-# Main Pipeline
-# -----------------------------
-def convert_to_vr180(video_path):
-    images_dir, fps = extract_frames(video_path)
-    render_dir = render_vr180(images_dir)
-    output_video = combine_vr180(render_dir, fps=fps)
-    tagged = inject_metadata(output_video)
-
-    shutil.rmtree(images_dir)
-    shutil.rmtree(render_dir)
-    return tagged
+    # ✅ Inject VR180 metadata
+    ffmpeg.input(output_path).output(
+        output_path.replace(".mp4", "_vr180.mp4"),
+        vf="v360=input=equirect:output=hequirect",
+        metadata="stereo_mode=left_right",
+    ).run(overwrite_output=True)
