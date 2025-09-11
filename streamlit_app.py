@@ -188,12 +188,11 @@ else:
             time.sleep(0.05)
         try:
             if st.session_state.video_path:
-                # ✅ FIX: generate output path and pass it
-                base, ext = os.path.splitext(st.session_state.video_path)
-                output_path = base + "_vr180.mp4"
-
-                convert_to_vr180(st.session_state.video_path, output_path)
-
+                # ✅ FIX: pass both input and output paths
+                output_path = convert_to_vr180(
+                    st.session_state.video_path,
+                    st.session_state.video_path.replace(".mp4", "_vr180.mp4")
+                )
                 st.session_state.output_path = output_path
                 st.session_state.current_state = "result"
                 st.session_state.is_converting = False
@@ -207,7 +206,7 @@ else:
     elif st.session_state.current_state == "result":
         st.markdown("<h2 style='text-align:center;'>VR180 Conversion Complete</h2>", unsafe_allow_html=True)
         if st.session_state.output_path and os.path.exists(st.session_state.output_path):
-            st.video(st.session_state.output_path)
+            st.video(st.session_state.output_path)  # ✅ uses final VR180 file
             st.download_button(
                 "Download VR180 Video",
                 data=open(st.session_state.output_path, "rb").read(),
