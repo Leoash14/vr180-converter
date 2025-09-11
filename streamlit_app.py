@@ -188,7 +188,12 @@ else:
             time.sleep(0.05)
         try:
             if st.session_state.video_path:
-                output_path = convert_to_vr180(st.session_state.video_path)
+                # ✅ FIX: generate output path and pass it
+                base, ext = os.path.splitext(st.session_state.video_path)
+                output_path = base + "_vr180.mp4"
+
+                convert_to_vr180(st.session_state.video_path, output_path)
+
                 st.session_state.output_path = output_path
                 st.session_state.current_state = "result"
                 st.session_state.is_converting = False
