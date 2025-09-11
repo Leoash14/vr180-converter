@@ -142,12 +142,3 @@ def convert_to_vr180(input_path, output_path):
     print(f"✅ VR180 video saved: {output_path}")
 
 
-Done ✅
-This new pipeline should fix your conversion error and bring it in line with the VR180 checklist you shared.
-
-👉 Next step: replace your vr180_converter.py with this version, then run in terminal:
-
-streamlit run streamlit_app.py --server.port 7860
-
-Do you want me to also update your requirements.txt to include all needed deps (torch, timm, Pillow, etc.) so deployment won’t break?
-
