@@ -2,8 +2,6 @@ import cv2
 import torch
 import numpy as np
 import ffmpeg
-from torchvision.transforms import Compose
-from torchvision.transforms import transforms as T
 
 # ✅ Load MiDaS depth model (small for speed)
 def load_midas_model(model_type="MiDaS_small"):
@@ -68,7 +66,6 @@ def create_stereo_pair(frame, depth, ipd=0.06, max_disp=1.5):
 # ✅ Projection: Panini + stereographic mix → equidistant fisheye
 def panini_stretch(img, d=0.7, s=0.2):
     h, w = img.shape[:2]
-    fov = np.pi  # 180°
     out = np.zeros_like(img)
     cx, cy = w // 2, h // 2
 
@@ -92,7 +89,7 @@ def panini_stretch(img, d=0.7, s=0.2):
 
 
 # ✅ Foveated blur for periphery
-def foveated_blur(img, start_deg=70):
+def foveated_blur(img):
     h, w = img.shape[:2]
     center_x, center_y = w // 2, h // 2
     max_radius = np.sqrt(center_x**2 + center_y**2)
@@ -111,7 +108,10 @@ def foveated_blur(img, start_deg=70):
 
 
 # ✅ VR180 Converter
-def convert_to_vr180(input_path, output_path, upscale=True):
+def convert_to_vr180(input_path, output_path=None, upscale=True):
+    if output_path is None:
+        output_path = input_path.replace(".mp4", "_converted.mp4")
+
     cap = cv2.VideoCapture(input_path)
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
 
@@ -143,8 +143,11 @@ def convert_to_vr180(input_path, output_path, upscale=True):
     out.release()
 
     # ✅ Inject VR180 metadata
+    final_out = output_path.replace(".mp4", "_vr180.mp4")
     ffmpeg.input(output_path).output(
-        output_path.replace(".mp4", "_vr180.mp4"),
+        final_out,
         vf="v360=input=equirect:output=hequirect",
         metadata="stereo_mode=left_right",
     ).run(overwrite_output=True)
+
+    return final_out
