@@ -17,25 +17,23 @@ def load_midas_model(model_type="MiDaS_small"):
 
     return midas, midas_transform
 
-
 midas_model, midas_transform = load_midas_model()
 
-
-# ✅ Depth estimation with shape guard
+# ✅ Fixed Depth Estimation
 def estimate_depth(frame):
     img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     input_batch = midas_transform(img)
 
-    # 🔒 Fix shape: ensure [1, 3, H, W]
-    if input_batch.ndim == 3:       # [3, H, W]
+    # 🔒 Ensure [1, 3, H, W]
+    if input_batch.ndim == 3:             # [3, H, W]
         input_batch = input_batch.unsqueeze(0)
-    elif input_batch.ndim == 5:     # [1, 1, 3, H, W]
-        input_batch = input_batch.squeeze(1)
+    elif input_batch.ndim == 5:           # [1, 1, 3, H, W]
+        input_batch = input_batch.squeeze(0).squeeze(0).unsqueeze(0)
 
     with torch.no_grad():
         prediction = midas_model(input_batch)
 
-        if prediction.ndim == 3:  # [1, H, W]
+        if prediction.ndim == 3:          # [1, H, W]
             prediction = prediction.unsqueeze(1)
 
         depth = torch.nn.functional.interpolate(
@@ -47,7 +45,6 @@ def estimate_depth(frame):
 
     depth = cv2.normalize(depth, None, 0, 1, cv2.NORM_MINMAX)
     return depth
-
 
 # ✅ Create stereo pair using depth-based shift
 def create_stereo_pair(frame, depth, ipd=0.06, max_disp=1.5):
@@ -67,7 +64,6 @@ def create_stereo_pair(frame, depth, ipd=0.06, max_disp=1.5):
                 right_img[y, x + disp] = frame[y, x]
 
     return left_img, right_img
-
 
 # ✅ Projection: Panini + stereographic mix → equidistant fisheye
 def panini_stretch(img, d=0.7, s=0.2):
@@ -93,7 +89,6 @@ def panini_stretch(img, d=0.7, s=0.2):
 
     return out
 
-
 # ✅ Foveated blur for periphery
 def foveated_blur(img, start_deg=70):
     h, w = img.shape[:2]
@@ -111,7 +106,6 @@ def foveated_blur(img, start_deg=70):
 
     out = np.uint8(img * (1 - mask[..., None]) + blurred * mask[..., None])
     return out
-
 
 # ✅ VR180 Converter
 def convert_to_vr180(input_path, output_path, upscale=True):
