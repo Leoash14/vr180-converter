@@ -2,7 +2,6 @@ import cv2
 import torch
 import numpy as np
 import ffmpeg
-from torchvision.transforms import Compose
 from torchvision.transforms import transforms as T
 
 # ✅ Load MiDaS depth model (small for speed)
@@ -22,21 +21,22 @@ def load_midas_model(model_type="MiDaS_small"):
 midas_model, midas_transform = load_midas_model()
 
 
-# ✅ Depth estimation (with shape fix)
+# ✅ Depth estimation with shape guard
 def estimate_depth(frame):
     img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     input_batch = midas_transform(img)
 
-    # 🔧 Fix: add batch dim only if missing
-    if input_batch.ndim == 3:   # [3, H, W]
-        input_batch = input_batch.unsqueeze(0)  # → [1, 3, H, W]
+    # 🔒 Fix shape: ensure [1, 3, H, W]
+    if input_batch.ndim == 3:       # [3, H, W]
+        input_batch = input_batch.unsqueeze(0)
+    elif input_batch.ndim == 5:     # [1, 1, 3, H, W]
+        input_batch = input_batch.squeeze(1)
 
     with torch.no_grad():
         prediction = midas_model(input_batch)
 
-        # 🔧 Fix: add channel dim only if missing
         if prediction.ndim == 3:  # [1, H, W]
-            prediction = prediction.unsqueeze(1)  # → [1, 1, H, W]
+            prediction = prediction.unsqueeze(1)
 
         depth = torch.nn.functional.interpolate(
             prediction,
