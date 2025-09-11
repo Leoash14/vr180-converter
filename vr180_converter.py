@@ -164,20 +164,34 @@ def combine_vr180(render_dir, fps=30, output="vr180_output.mp4"):
     return os.path.abspath(output)
 
 # -----------------------------
-# Metadata Injection
+# Metadata Injection (Fixed)
 # -----------------------------
 def inject_metadata(video_path):
     out = video_path.replace(".mp4", "_vr180.mp4")
-    cmd = [
+
+    cmd1 = [
         "python", "-m", "spatialmedia",
-        "-i", "--stereo=left-right", "--projection=rectilinear",
+        "-i", "--stereo=left-right", "--projection=equirectangular",
         video_path, out
     ]
+    cmd2 = [
+        "spatialmedia",
+        "-i", "--stereo=left-right", "--projection=equirectangular",
+        video_path, out
+    ]
+
     try:
-        subprocess.run(cmd, check=True)
-    except:
-        print("[WARN] Metadata injection failed")
-        return video_path
+        subprocess.run(cmd1, check=True)
+        print("[INFO] Metadata injected using python -m spatialmedia")
+    except Exception as e1:
+        print("[WARN] Module call failed, trying CLI:", e1)
+        try:
+            subprocess.run(cmd2, check=True)
+            print("[INFO] Metadata injected using CLI")
+        except Exception as e2:
+            print("[ERROR] Metadata injection failed:", e2)
+            return video_path
+
     return out
 
 # -----------------------------
