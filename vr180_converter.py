@@ -1,34 +1,29 @@
 import cv2
-import torch
 import numpy as np
-from PIL import Image
+import torch
+import torchvision.transforms as T
+import subprocess
+import os
+import json
 
-# -----------------------------
-# Load MiDaS depth model
-# -----------------------------
+# ---------------------------
+# Load MiDaS Depth Model
+# ---------------------------
 def load_midas_model(model_type="DPT_Large"):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = torch.hub.load("intel-isl/MiDaS", model_type)
+    model = torch.hub.load("intel-isl/MiDaS", model_type, trust_repo=True)
     model.eval()
-    model.to(device)
+    transform = torch.hub.load("intel-isl/MiDaS", "transforms", trust_repo=True)
 
-    midas_transforms = torch.hub.load("intel-isl/MiDaS", "transforms")
-    transform = midas_transforms.dpt_transform
+    if "DPT" in model_type:
+        return model, transform.dpt_transform
+    else:
+        return model, transform.small_transform
 
-    return model, transform, device
-
-
-# -----------------------------
-# Estimate depth from frame
-# -----------------------------
-def estimate_depth(frame, model, transform, device):
-    img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    img = Image.fromarray(img)
-
-    input_batch = transform(img).to(device)
-
-    if input_batch.dim() == 3:
-        input_batch = input_batch.unsqueeze(0)
+# ---------------------------
+# Depth estimation
+# ---------------------------
+def estimate_depth(frame, model, transform):
+    input_batch = transform(frame).unsqueeze(0)
 
     with torch.no_grad():
         prediction = model(input_batch)
@@ -37,108 +32,111 @@ def estimate_depth(frame, model, transform, device):
             size=frame.shape[:2],
             mode="bicubic",
             align_corners=False,
-        ).squeeze().cpu().numpy()
+        ).squeeze()
 
-    return prediction
+    depth_map = prediction.cpu().numpy()
+    depth_map = (depth_map - depth_map.min()) / (depth_map.max() - depth_map.min() + 1e-8)
+    return depth_map
 
-
-# -----------------------------
-# Disparity control
-# -----------------------------
-def apply_disparity_cap(shift_map, max_disparity=0.026):
-    return np.clip(shift_map, -max_disparity, max_disparity)
-
-
-# -----------------------------
-# Projection mixing (Panini + Stereographic)
-# -----------------------------
-def mixed_projection(frame, panini_strength=0.7, stereo_strength=0.2):
-    h, w = frame.shape[:2]
-    panini = cv2.fisheye.undistortImage(frame, np.eye(3), None)
-    K = np.array([[w / 2, 0, w / 2], [0, w / 2, h / 2], [0, 0, 1]])
-    stereo = cv2.warpPerspective(frame, K, (w, h))
-    return cv2.addWeighted(panini, panini_strength, stereo, stereo_strength, 0)
-
-
-# -----------------------------
-# Equidistant fisheye conversion
-# -----------------------------
-def to_fisheye(frame):
-    h, w = frame.shape[:2]
-    equidistant = np.zeros_like(frame)
-    f = w / (2 * np.pi)
-
-    for y in range(h):
-        for x in range(w):
-            theta = (x - w / 2) / f
-            phi = (y - h / 2) / f
-            r = np.sqrt(theta ** 2 + phi ** 2)
-            if r <= np.pi / 2:
-                equidistant[y, x] = frame[y, x]
-
-    return equidistant
-
-
-# -----------------------------
-# Stereo generation (simple DIBR)
-# -----------------------------
-def generate_stereo(frame, depth_map, ipd=0.063):
-    h, w = frame.shape[:2]
-    shift_map = (depth_map - depth_map.min()) / (depth_map.max() - depth_map.min())
-    shift_map = (shift_map - 0.5) * ipd
-    shift_map = apply_disparity_cap(shift_map)
+# ---------------------------
+# Stereo rendering (DIBR)
+# ---------------------------
+def generate_stereo(frame, depth_map, ipd=6.3, disparity_cap=1.5):
+    h, w, _ = frame.shape
+    max_shift = int(w * 0.01 * disparity_cap)  
 
     left = np.zeros_like(frame)
     right = np.zeros_like(frame)
 
     for y in range(h):
+        shift = (depth_map[y] * max_shift).astype(np.int32)
         for x in range(w):
-            dx = int(shift_map[y, x] * w)
-            lx = min(max(x - dx, 0), w - 1)
-            rx = min(max(x + dx, 0), w - 1)
-            left[y, x] = frame[y, lx]
-            right[y, x] = frame[y, rx]
+            dx = shift[x]
+            new_x_l = x - dx
+            new_x_r = x + dx
+            if 0 <= new_x_l < w:
+                left[y, new_x_l] = frame[y, x]
+            if 0 <= new_x_r < w:
+                right[y, new_x_r] = frame[y, x]
+
+    left = cv2.inpaint(left, cv2.cvtColor(left, cv2.COLOR_BGR2GRAY) == 0, 3, cv2.INPAINT_NS)
+    right = cv2.inpaint(right, cv2.cvtColor(right, cv2.COLOR_BGR2GRAY) == 0, 3, cv2.INPAINT_NS)
 
     return left, right
 
+# ---------------------------
+# Projection: Equidistant fisheye
+# ---------------------------
+def apply_fisheye(image):
+    h, w = image.shape[:2]
+    K = np.array([[w/2, 0, w/2],
+                  [0, w/2, h/2],
+                  [0, 0, 1]], dtype=np.float32)
+    D = np.array([0.2, -0.05, 0, 0], dtype=np.float32)  # mild fisheye
+    map1, map2 = cv2.initUndistortRectifyMap(K, D, None, K, (w, h), cv2.CV_32FC1)
+    return cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR)
 
-# -----------------------------
-# Full VR180 pipeline
-# -----------------------------
-def convert_to_vr180(input_path, output_path):
+# ---------------------------
+# Metadata injection (VR180 fisheye)
+# ---------------------------
+def inject_vr180_metadata(video_path):
+    out = video_path.replace(".mp4", "_vr180.mp4")
+    metadata = {
+        "stereo_mode": "left-right",
+        "projection": "fisheye_equidistant",
+        "180_mode": True
+    }
+
+    meta_file = "metadata.json"
+    with open(meta_file, "w") as f:
+        json.dump(metadata, f)
+
+    cmd = ["mp4box", "-add", video_path, "-udta", meta_file, out]
+    try:
+        subprocess.run(cmd, check=True)
+        print("[INFO] VR180 metadata injected.")
+        return os.path.abspath(out)
+    except Exception as e:
+        print("[WARN] Metadata injection failed:", e)
+        return video_path
+
+# ---------------------------
+# Main converter
+# ---------------------------
+def convert_to_vr180(input_path, output_path="output_vr180.mp4"):
     cap = cv2.VideoCapture(input_path)
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    out = cv2.VideoWriter(output_path, fourcc, cap.get(cv2.CAP_PROP_FPS), (7680, 3840))
+    if not cap.isOpened():
+        raise RuntimeError("❌ Cannot open input video")
 
-    model, transform, device = load_midas_model()
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    target_w, target_h = 7680, 3840
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(output_path, fourcc, fps, (target_w, target_h))
+
+    model, transform = load_midas_model()
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        depth = estimate_depth(frame, model, transform, device)
-        left, right = generate_stereo(frame, depth)
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        depth_map = estimate_depth(frame_rgb, model, transform)
 
-        # Projection polish
-        left = mixed_projection(left)
-        right = mixed_projection(right)
+        left, right = generate_stereo(frame, depth_map)
+        left_f = apply_fisheye(left)
+        right_f = apply_fisheye(right)
 
-        # Convert to fisheye
-        left_fish = to_fisheye(left)
-        right_fish = to_fisheye(right)
-
-        # Merge SBS
-        sbs = np.concatenate((left_fish, right_fish), axis=1)
-
-        # Resize to 7680x3840
-        sbs = cv2.resize(sbs, (7680, 3840))
+        sbs = np.concatenate((left_f, right_f), axis=1)
+        sbs = cv2.resize(sbs, (target_w, target_h), interpolation=cv2.INTER_CUBIC)
 
         out.write(sbs)
 
     cap.release()
     out.release()
 
-    print(f"✅ VR180 video saved: {output_path}")
-
-
+    final_video = inject_vr180_metadata(output_path)
+    return final_video
