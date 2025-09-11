@@ -3,4 +3,5 @@ opencv-python
 numpy
 ffmpeg-python
 opencv-python-headless
-git+https://github.com/google/spatial-media
+torch
+torchvision
