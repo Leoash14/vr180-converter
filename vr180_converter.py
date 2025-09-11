@@ -2,6 +2,8 @@ import cv2
 import torch
 import numpy as np
 import ffmpeg
+from torchvision.transforms import Compose
+from torchvision.transforms import transforms as T
 
 # ✅ Load MiDaS depth model (small for speed)
 def load_midas_model(model_type="MiDaS_small"):
@@ -20,15 +22,19 @@ def load_midas_model(model_type="MiDaS_small"):
 midas_model, midas_transform = load_midas_model()
 
 
-# ✅ Depth estimation
+# ✅ Depth estimation (with shape fix)
 def estimate_depth(frame):
     img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    input_batch = midas_transform(img).unsqueeze(0)  # [1, 3, H, W]
+    input_batch = midas_transform(img)
+
+    # 🔧 Fix: add batch dim only if missing
+    if input_batch.ndim == 3:   # [3, H, W]
+        input_batch = input_batch.unsqueeze(0)  # → [1, 3, H, W]
 
     with torch.no_grad():
         prediction = midas_model(input_batch)
 
-        # Fix: only unsqueeze if 3D
+        # 🔧 Fix: add channel dim only if missing
         if prediction.ndim == 3:  # [1, H, W]
             prediction = prediction.unsqueeze(1)  # → [1, 1, H, W]
 
@@ -89,7 +95,7 @@ def panini_stretch(img, d=0.7, s=0.2):
 
 
 # ✅ Foveated blur for periphery
-def foveated_blur(img):
+def foveated_blur(img, start_deg=70):
     h, w = img.shape[:2]
     center_x, center_y = w // 2, h // 2
     max_radius = np.sqrt(center_x**2 + center_y**2)
@@ -108,10 +114,7 @@ def foveated_blur(img):
 
 
 # ✅ VR180 Converter
-def convert_to_vr180(input_path, output_path=None, upscale=True):
-    if output_path is None:
-        output_path = input_path.replace(".mp4", "_converted.mp4")
-
+def convert_to_vr180(input_path, output_path, upscale=True):
     cap = cv2.VideoCapture(input_path)
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
 
@@ -143,11 +146,8 @@ def convert_to_vr180(input_path, output_path=None, upscale=True):
     out.release()
 
     # ✅ Inject VR180 metadata
-    final_out = output_path.replace(".mp4", "_vr180.mp4")
     ffmpeg.input(output_path).output(
-        final_out,
+        output_path.replace(".mp4", "_vr180.mp4"),
         vf="v360=input=equirect:output=hequirect",
         metadata="stereo_mode=left_right",
     ).run(overwrite_output=True)
-
-    return final_out
