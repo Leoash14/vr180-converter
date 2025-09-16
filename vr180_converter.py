@@ -342,7 +342,7 @@ def inject_vr180_metadata(mp4_path):
         sys.executable, "-m", "spatialmedia",
         "-i",
         "--stereo=left-right",
-        "--projection=fisheye","--spatial-audio",
+        "--projection=equirectangular","--spatial-audio",
         mp4_path, tagged_path
     ]
 
@@ -352,20 +352,7 @@ def inject_vr180_metadata(mp4_path):
         raise RuntimeError("spatialmedia did not produce expected output: " + tagged_path)
     print(f"[INFO] Injected VR180 metadata: {tagged_path}")
     return os.path.abspath(tagged_path)
-    # --- Verify metadata ---
-    verify = subprocess.run(
-      [sys.executable, "-m", "spatialmedia", "-d", tagged_path],
-      capture_output=True, text=True
-    )
-
-    if verify.returncode == 0:
-        print("[INFO] Metadata dump:\n" + verify.stdout)
-        if "<GSpherical:ProjectionType>fisheye</GSpherical:ProjectionType>" in verify.stdout:
-            print("✅ Confirmed: Video tagged as fisheye VR180")
-        else:
-            print("⚠️ Warning: ProjectionType is not fisheye")
-    else:
-        print("[WARN] Could not verify metadata.")
+   
 
 # -----------------------
 # Combine frames + upscale (safe mux)
