@@ -21,7 +21,8 @@ soundfile         # for FOA WAV write/read
 scipy             # for signal processing (FOA conversion)
 
 # Upscaling (optional)
-real-esrgan       # if you want RealESRGAN upscaler (needs extra setup)
+git+https://github.com/xinntao/Real-ESRGAN.git
+
 
 # Metadata Injection
 spatialmedia      # or install from GitHub if not on PyPI: pip install git+https://github.com/google/spatial-media
