@@ -11,7 +11,7 @@ timm              # for MiDaS depth model backbone
 pillow
 matplotlib
 moviepy           # extracting audio, writing video
-soundfile         # for FOA WAV write/read
+pysoundfile==0.12.1
 scipy             # for signal processing (FOA conversion)
 git+https://github.com/xinntao/Real-ESRGAN.git
 spatialmedia      # or install from GitHub if not on PyPI: pip install git+https://github.com/google/spatial-media
