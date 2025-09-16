@@ -169,7 +169,7 @@ else:
 
         col1, col2 = st.columns([1,1])
         with col1:
-            if st.button("Convert with NeRF", disabled=not st.session_state.video_path or st.session_state.is_converting, use_container_width=True):
+            if st.button("Convert video", disabled=not st.session_state.video_path or st.session_state.is_converting, use_container_width=True):
                 st.session_state.current_state = "processing"
                 st.session_state.is_converting = True
                 st.session_state.error = ""
