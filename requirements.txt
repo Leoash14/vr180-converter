@@ -5,24 +5,13 @@ opencv-python-headless
 numpy
 ffmpeg-python
 tqdm
-
-# PyTorch + Models
 torch
 torchvision
 timm              # for MiDaS depth model backbone
-
-# Image/Video Utilities
 pillow
 matplotlib
-
-# Video Processing & Audio
 moviepy           # extracting audio, writing video
 soundfile         # for FOA WAV write/read
 scipy             # for signal processing (FOA conversion)
-
-# Upscaling (optional)
 git+https://github.com/xinntao/Real-ESRGAN.git
-
-
-# Metadata Injection
 spatialmedia      # or install from GitHub if not on PyPI: pip install git+https://github.com/google/spatial-media
