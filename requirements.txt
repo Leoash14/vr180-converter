@@ -10,5 +10,5 @@ timm              # for MiDaS depth model backbone
 pillow
 matplotlib
 moviepy           # extracting audio, writing video
-pysoundfile==0.12.1
+pysoundfile>=0.10.0
 scipy             # for signal processing (FOA conversion)
